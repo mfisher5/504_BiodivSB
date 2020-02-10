@@ -1,6 +1,9 @@
-# 504_BiodivSB
+# CS&SS 504: Biodiversity of the Santa Barbara Channel
 
 This is the Github repository for CS&SS 504 Class Project, Group 5.
+<br>
+
+**Collaborators: Tim Xi, Yichao Wang, Mary Fisher**
 <br>
 <br>
 
@@ -17,8 +20,8 @@ The components of the project are as follows:
 <br>
 <br>
 
-### Group 5 Project Background & Goal:
-<br>
+### Group 5 Project Background & Goal
+
 This projects explore changes in a California marine ecosystem and relates those changes to ocean conditions, by taking advantage of the extensive publicly-available data sets collected by the Santa Barbara Channel Long-Term Ecological Research (LTER) program. 
 
 Marine ecosystems are subject to natural variability in environmental conditions, such as the El Niño-Southern Oscillation, as well as a variety of anthropogenic pressures including climate change and coastal development. Long-term data sets are critical for understanding how marine ecosystems change – or do not change – over time and space. The Santa Barbara Channel is a particularly interesting location for analyzing temporal changes in marine ecosystems because it is a transition zone between the cold waters of the California Current and the warmer waters of Southern California. This results in a high diversity of marine organisms that are strongly influenced by the physical and chemical characteristics of the water. 
