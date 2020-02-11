@@ -25,3 +25,9 @@ The components of the project are as follows:
 This projects explore changes in a California marine ecosystem and relates those changes to ocean conditions, by taking advantage of the extensive publicly-available data sets collected by the Santa Barbara Channel Long-Term Ecological Research (LTER) program. 
 
 Marine ecosystems are subject to natural variability in environmental conditions, such as the El Niño-Southern Oscillation, as well as a variety of anthropogenic pressures including climate change and coastal development. Long-term data sets are critical for understanding how marine ecosystems change – or do not change – over time and space. The Santa Barbara Channel is a particularly interesting location for analyzing temporal changes in marine ecosystems because it is a transition zone between the cold waters of the California Current and the warmer waters of Southern California. This results in a high diversity of marine organisms that are strongly influenced by the physical and chemical characteristics of the water. 
+
+#### Research Questions
+
+How are oceanographic conditions and herbivore abundance correlated with giant kelp size and abundance?
+How are oceanographic conditions associated with fish community abundance and diversity?
+how does fish community abundance and diversity vary according to giant kelp size and abundance?
