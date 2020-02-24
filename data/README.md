@@ -1,24 +1,21 @@
-## SBC LTER Data
+## SBC LTER Regression Input Data
 
-This folder contains Santa Barbara Coastal LTER data sets, downloaded from the [SBCLTER data catalog](https://sbclter.msi.ucsb.edu/data/catalog/)
+This folder contains edited Santa Barbara Coastal LTER data sets, which have been summarized for regression analysis.
 
-#### Biological Communities
 
-`Annual_Kelp_All_Years`: Abundance and size of Giant Kelp (Macrocystis Pyrifera), ongoing since 2000. [metadata](https://portal.edirepository.org/nis/mapbrowse?scope=knb-lter-sbc&identifier=18&revision=newest)
 
-`Annual_fish_comb`: Abundance and size of fish at kelp forest monitoring sites, ongoing since 2000. [metadata](https://portal.edirepository.org/nis/mapbrowse?scope=knb-lter-sbc&identifier=17&revision=newest)
+#### Predictor Variables Data
+
+**Habitat**
+
+`Annual_Kelp_MeanSize_MeanAbund_2001-2018.csv`: Mean abundance (fronds / meter) and mean size (holdfast diameter) of giant kelp per transect, at each of 8 coastal sites, 2001-2018. Data frame includes the following variables: year (of sampling), month (of sampling), site, transect (replicate), obs_code (person gathering data), sp_code (species and/or subspecies, age class, etc.), scientific_name (species name), group (algae)
 <br>
 
-`Annual_Quad_Swath_All_Years`: Abundance of algae and invertebrates at kelp forest monitoring sites, ongoing since 2000. [metadata](https://portal.edirepository.org/nis/mapbrowse?scope=knb-lter-sbc&identifier=19&revision=newest)
-<br>
+**Water Quality and Composition**
+
+#### Response Variables Data
+
+Sampling conducted at 8 mainland sites (BULL, CARP, NAPL, AHND, AQUE, IVEE, GOLB, ABUR, MOHK) from 2001-2018. 
 
 
-#### Oceanographic Data
 
-These data sets must be kept locally due to Github's file size limits. 
-
-Temperature: Continuous reef bottom temperature, ongoing since 2000. [download data](https://portal.edirepository.org/nis/mapbrowse?scope=knb-lter-sbc&identifier=13&revision=newest)
-
-pH, CO2, DO: Mid-water pH and CO2 system chemistry with surface and bottom Dissolved Oxygen at Mohawk Reef(MKO), ongoing since 2012. [download data](https://portal.edirepository.org/nis/mapbrowse?scope=knb-lter-sbc&identifier=6003&revision=newest)
-
-dissolved nitrogen and phsophorus: water chemistry measurements taken monthly at these reefs in the nearshore areas of the Santa Barbra Channel, CA, USA: Arroyo Quemado, Bullito, Naples, Arroyo Burro, Mohawk and Carpinteria. ongoing since 2003. [dowmload data](https://portal.edirepository.org/nis/metadataviewer?packageid=knb-lter-sbc.10.23) 

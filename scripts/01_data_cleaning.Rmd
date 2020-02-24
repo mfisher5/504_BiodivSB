@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(janitor)
 library(here)
+library(vegan)
 ```
 
 ## Biological Communities Data
@@ -21,7 +22,8 @@ Abundance and size of Giant Kelp (Macrocystis Pyrifera), ongoing since 2000.
 ```{r}
 kelp <- read.csv(here::here("data","Annual_Kelp_All_Years_20181127.csv")) %>%
   clean_names() %>%
-  remove_empty("rows")
+  remove_empty("rows") %>%
+  na_if(-99999)
 colnames(kelp); dim(kelp)
 ```
 <br>
@@ -30,7 +32,8 @@ Abundance and size of fish at kelp forest monitoring sites, ongoing since 2000.
 ```{r}
 fish <- read.csv(here::here("data","Annual_fish_comb_20181127.csv")) %>%
   clean_names() %>%
-  remove_empty("rows")
+  remove_empty("rows") %>%
+  na_if(-99999)
 colnames(fish); dim(fish)
 ```
 <br>
@@ -40,7 +43,8 @@ Abundance of algae and invertebrates at kelp forest monitoring sites, ongoing si
 ```{r}
 invert <- read.csv(here::here("data","Annual_Quad_Swath_All_Years_20181127.csv")) %>%
   clean_names() %>%
-  remove_empty("rows")
+  remove_empty("rows") %>%
+  na_if(-99999)
 colnames(invert); dim(invert)
 ```
 <br>
@@ -66,10 +70,35 @@ unique(invert$sp_code); unique(invert$taxon_order)
 
 *LTER site Abstract:* These data describe the abundance of giant kelp, Macrocystis pyrifera, and are part of the SBCLTER kelp forest monitoring program. The study was initiated in 2000, in the Santa Barbara Channel, California, USA, and this dataset is updated once per year. The number and size (number of fronds and diameter of holdfasts) of plants were recorded along permanent transects at nine reef sites located along the mainland coast of the Santa Barbara Channel and at two sites on the north side Santa Cruz Island. These sites reflect several oceanographic regimes in the channel and vary in distance from sources of terrestrial runoff. The time period of data collection varied among the 11 kelp forest sites. Sampling at BULL, CARP, and NAPL began in 2000, sampling at the other 6 mainland sites (AHND, AQUE, IVEE, GOLB, ABUR, MOHK) began in 2001 (transects 3, 5, 6, 7, 8 at IVEE were added in 2011). 
 
-I'm going to grab the data for the mainland sites, for 2001 onward, and focus only on abundance of kelp (not size). Abundance is measured as number of fronds
+I'm going to grab the data for the mainland sites, for 2001 onward. 
 ```{r}
-kelp_thin <- dplyr::select(kelp, year, month, site,transect,quad,side,sp_code,scientific_name,group,fronds) %>%
+kelp_thin <- dplyr::select(kelp, year, month, date,site,transect,obs_code, quad,side,survey,sp_code,scientific_name,group,fronds,hld_diam,area) %>%
   filter(year >= 2001)
+```
+<br>
+
+Now I have to summarise the size / abundance of kelp at each site. The data was collected in quadrats along permanent transects, so each transect is a replicate. A transect has 2 sections ("quad"), 0-20m and 20-40m, and 2 sides ("side"), inshore and offshore. For abundance, I want to first calculate the mean fronds / m of the transect. For size, I want to calculate the mean holdfast diameter per transect.
+```{r}
+kelp_abund <- kelp_thin %>%
+  #calculate fronds / m
+  group_by(year, month, site,transect,obs_code,sp_code,scientific_name,group,quad,side) %>%
+  summarise(abund=median(fronds,na.rm=TRUE)/unique(area)) %>%
+  #mean of fronds / m
+  group_by(year, month, site,transect,obs_code,sp_code,scientific_name,group) %>%
+  summarise(mean_abund=mean(abund,na.rm=TRUE))
+
+kelp_size <- kelp_thin %>%
+  #mean of holdfast diameter, per transect
+  group_by(year, month, site,transect,obs_code,sp_code,scientific_name,group) %>%
+  summarise(mean_size=mean(hld_diam,na.rm=TRUE))
+
+kelp_means <- full_join(kelp_abund,kelp_size,by=c("year", "month", "site","transect","obs_code","sp_code","scientific_name","group"))
+```
+<br>
+
+Write out the new data
+```{r}
+
 ```
 <br>
 
