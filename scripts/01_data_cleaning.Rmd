@@ -1,0 +1,102 @@
+---
+title: "SBC LTER Data"
+author: "Mary Fisher"
+date: "February 24, 2020"
+output: 
+  html_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(janitor)
+library(here)
+```
+
+## Biological Communities Data
+
+### Raw Data
+Abundance and size of Giant Kelp (Macrocystis Pyrifera), ongoing since 2000. 
+```{r}
+kelp <- read.csv(here::here("data","Annual_Kelp_All_Years_20181127.csv")) %>%
+  clean_names() %>%
+  remove_empty("rows")
+colnames(kelp); dim(kelp)
+```
+<br>
+
+Abundance and size of fish at kelp forest monitoring sites, ongoing since 2000. 
+```{r}
+fish <- read.csv(here::here("data","Annual_fish_comb_20181127.csv")) %>%
+  clean_names() %>%
+  remove_empty("rows")
+colnames(fish); dim(fish)
+```
+<br>
+
+
+Abundance of algae and invertebrates at kelp forest monitoring sites, ongoing since 2000. 
+```{r}
+invert <- read.csv(here::here("data","Annual_Quad_Swath_All_Years_20181127.csv")) %>%
+  clean_names() %>%
+  remove_empty("rows")
+colnames(invert); dim(invert)
+```
+<br>
+
+### Thin Data Set
+
+Is each site represented in each data set?
+```{r}
+all(unique(kelp$site) %in% unique(fish$site))
+all(unique(kelp$site) %in% unique(invert$site))
+```
+<br>
+
+How many unique species / taxonomic orders are in each data set?
+```{r}
+unique(kelp$sp_code)
+unique(fish$sp_code); unique(fish$taxon_order)
+unique(invert$sp_code); unique(invert$taxon_order)
+```
+<br>
+
+#### Kelp Data
+
+*LTER site Abstract:* These data describe the abundance of giant kelp, Macrocystis pyrifera, and are part of the SBCLTER kelp forest monitoring program. The study was initiated in 2000, in the Santa Barbara Channel, California, USA, and this dataset is updated once per year. The number and size (number of fronds and diameter of holdfasts) of plants were recorded along permanent transects at nine reef sites located along the mainland coast of the Santa Barbara Channel and at two sites on the north side Santa Cruz Island. These sites reflect several oceanographic regimes in the channel and vary in distance from sources of terrestrial runoff. The time period of data collection varied among the 11 kelp forest sites. Sampling at BULL, CARP, and NAPL began in 2000, sampling at the other 6 mainland sites (AHND, AQUE, IVEE, GOLB, ABUR, MOHK) began in 2001 (transects 3, 5, 6, 7, 8 at IVEE were added in 2011). 
+
+I'm going to grab the data for the mainland sites, for 2001 onward, and focus only on abundance of kelp (not size). Abundance is measured as number of fronds
+```{r}
+kelp_thin <- dplyr::select(kelp, year, month, site,transect,quad,side,sp_code,scientific_name,group,fronds) %>%
+  filter(year >= 2001)
+```
+<br>
+
+
+#### Fish Data
+These data describe the abundance and size of fish species as part of SBCLTER's kelp forest monitoring program to track long-term patterns in species abundance and diversity. The abundance and size of all taxa of resident kelp forest fish encountered along permanent transects are recorded at nine reef sites located along the mainland coast of the Santa Barbara Channel and at two sites on the north side of Santa Cruz Island. These sites reflect several oceanographic regimes in the channel and vary in distance from sources of terrestrial runoff. In these surveys, fish were counted in either a 40x2m benthic quadrat, or in the water parcel 0-2m off the bottom over the same area. The two tables in this data package include: 1) The annual benthic fish community survey which was conducted on 11 reefs once a year around late July or early August; and 2) The monthly fish survey which was conducted once a month at a subset of the sites (3 of the annual sites) The time period of data collection for the annual benthic fish community survey varied among the 11 kelp forest sites. Sampling at BULL, CARP, and NAPL began in 2000, sampling at the other 6 mainland sites (AHND, AQUE, IVEE, GOLB, ABUR, MOHK) began in 2001 (transects 3, 5, 6, 7, 8 at IVEE were added in 2011). 
+
+I am going to summarize this data set using (1) species richness, (2) species abundance, and (3) size structure. 
+```{r}
+```
+<br>
+
+
+## Oceanographic data
+
+Continuous reef bottom temperature, ongoing since 2000.
+
+water chemistry measurements taken monthly at these reefs in the nearshore areas of the Santa Barbara Channel, CA, USA: Arroyo Quemado, Bullito, Naples, Arroyo Burro, Mohawk and Carpinteria. ongoing since 2003.
+
+
+
+
+
+
+
+
+
+
+
+
