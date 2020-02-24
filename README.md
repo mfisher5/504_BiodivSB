@@ -29,4 +29,43 @@ Marine ecosystems are subject to natural variability in environmental conditions
 #### Research Questions
 
 How are oceanographic conditions and herbivore abundance correlated with giant kelp size and abundance?
-how does fish community abundance and diversity vary according to giant kelp size and abundance, and oceanographic conditions?
+How does fish community abundance and diversity vary according to giant kelp size and abundance, and oceanographic conditions?
+
+#### Variables
+
+Kelp Abundance: Kelp fronds / m, by transect (replicate) and site
+
+Kelp Size: Diameter of the kelp holdfast, by transect (replicate) and site
+
+Fish Species Richness: Number of different fish species present, by transect (replicate) and site. Calculated as: Richness = number of species / sqrt(number of individuals)
+
+Fish Species Abundance: Diversity of fish species present, by transect (replicate) and site. Calculated as: Shannon index = ∑ (pl) |ln pl|, Where (pl) is the proportion of the total number of individuals in the population that are in species “l”.
+
+Invertebrate Species Richness
+
+Invertebrate Species Abundance
+
+Urchin Abundance: individuals / m, by transect (replicate) and site. Urchins are herbivores that eat kelp; they have played a large role in the decline of kelp forests. 
+
+
+
+#### Covariates (Biological Community)
+
+Site: Sampling site. There are eight coastal sites included in this data set. 
+
+Year: Year of sampling. In the data, sampling was conducted from 2001-2018. 
+
+Month: Month the survey was conducted. 
+
+Observer: Who conducted the survey. 
+
+
+
+
+
+
+
+
+
+
+
