@@ -49,7 +49,7 @@ colnames(invert); dim(invert)
 ```
 <br>
 
-### Thin Data Set
+### Processed Data Set
 
 Is each site represented in each data set?
 ```{r}
@@ -171,17 +171,54 @@ write.csv(fish_out, here::here("data","Annual_Fish_RichnessAbundDiversity_2001-2
 
 ## Oceanographic data
 
+### Raw Data
+
 Continuous reef bottom temperature, ongoing since 2000.
 ```{r}
+temp_raw <- read.csv(here::here("data","raw","Bottom_temp_all_years_20190806.csv")) %>%
+   clean_names() %>%
+  remove_empty("rows") %>%
+  na_if(-99999)
+colnames(temp_raw); dim(temp_raw)
 ```
+<br>
 
 water chemistry measurements taken monthly at these reefs in the nearshore areas of the Santa Barbara Channel, CA, USA: Arroyo Quemado, Bullito, Naples, Arroyo Burro, Mohawk and Carpinteria. ongoing since 2003.
 
+### Process Data
+
+#### Reef bottom temperature data
+
+First, I'll just convert the dates into date objects so that I can work with them. 
+```{r}
+tempdat <- temp_raw %>%
+  mutate(date_local=date(parse_date_time(date_local,orders=c("ymd","mdy"))),
+         year=year(date_local), month=month(date_local)) %>%
+  filter(!is.na(date_local))
+min(tempdat$date_local,na.rm=TRUE); max(tempdat$date_local,na.rm=TRUE)
+```
+<br>
+
+I'm going to average the summer and winter temperatures at each site for each year, and find the variation in temperature throughout those seasons. To do so, I want to see if there are any natural breaks in temperature fluctuations.
+```{r}
+ggplot(data=filter(tempdat, year==2003 | year==2004), aes(x=date_local,y=temp_c, col=site)) +  geom_smooth()
+```
 
 
+Let's say that "summer" is May - Oct, and "winter" is Nov - April.
+```{r}
+tempdat_means <- tempdat %>%
+  mutate(season=ifelse(month > 5 & month < 10, "summer","winter")) %>%
+  group_by(site,serial,year,season) %>%
+  summarise(mean.temp=mean(temp_c), var.temp=var(temp_c), sd.temp=sd(temp_c))
+```
+<br>
 
-
-
+Write out
+```{r}
+write.csv(tempdat_means, here::here("data","Seasonal_Mean_Bottom_Temp_2002-2019.csv"),row.names=FALSE)
+```
+<br>
 
 
 
