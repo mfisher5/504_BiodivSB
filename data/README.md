@@ -22,5 +22,4 @@ Sampling conducted at 8 mainland sites (BULL, CARP, NAPL, AHND, AQUE, IVEE, GOLB
 
 `Seasonal_Mean_Bottom_Temp_2002-2019.csv`: Mean, variance, and standard deviation of summer (May - Oct) and winter (Nov - April) water temperature at each sampling site, from 2002-2019. Data frame includes the following variables: site (sampling site), serial (sampling site code), year (sampling year), season (winter / summer), mean.temp (C), var.temp (C), sd.temp (C).
 
-
-
+`Annual_CTD_WaterChemistry_MeanMax_2000-2018.csv`: Mean and maximum of water chemistry, from CTD measurements taken 2000-2018 at four of the sampling sites.

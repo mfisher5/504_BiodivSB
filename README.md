@@ -60,6 +60,8 @@ Urchin Abundance: individuals / m^2, by transect (replicate) and site. Urchins a
 
 Seasonal Bottom Temperature: mean of, and variation in, bottom temperature during the summer and winter seasons, by site. In Celsius. 
 
+Annual Water Chemistry: mean and maximum of nitrogen (umol/l), phosphorus (umol/l), urea (umol/l), ammonia (umol/l), total chlorophyll (umol/l) from CTD measurements at four sites. 
+
 
 #### Potential Covariates 
 
