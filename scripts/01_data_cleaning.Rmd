@@ -369,7 +369,7 @@ write.csv(tempdat_means, here::here("data","Seasonal_Mean_Bottom_Temp_2002-2019.
 
 #### Water chemistry data
 
-**LTER Abstract:** water chemistry measurements taken monthly at these reefs in the nearshore areas of the Santa Barbara Channel, CA, USA: Arroyo Quemado, Bullito, Naples, Arroyo Burro, Mohawk and Carpinteria. ongoing since 2003. Measurements include standard CTD parameters, nutrients, pigments, particulate CN, total dissolved N and P, stable isotopes of C and N (not all parameters are measured at all stations). Sampling began in November 2000. Some stations are sampled only occasionally. During the first 2 years, CTD data were collected with a SBE19 Seacat Profiler and water samples with a pump. Starting in February 2003, a SBE19-Plus with a rosette sampler was used.
+*LTER Abstract:* water chemistry measurements taken monthly at these reefs in the nearshore areas of the Santa Barbara Channel, CA, USA: Arroyo Quemado, Bullito, Naples, Arroyo Burro, Mohawk and Carpinteria. ongoing since 2003. Measurements include standard CTD parameters, nutrients, pigments, particulate CN, total dissolved N and P, stable isotopes of C and N (not all parameters are measured at all stations). Sampling began in November 2000. Some stations are sampled only occasionally. During the first 2 years, CTD data were collected with a SBE19 Seacat Profiler and water samples with a pump. Starting in February 2003, a SBE19-Plus with a rosette sampler was used.
 
 I'm interested in total dissolved nitrogen and phosphorus (how nutrient-rich is the water? can also be an indication of run-off, and kelp is known to require nitrogen to grow). I'll also look at chlorophyll (indicates primary productivity), urea (indicates run-off, as a common fertilizer).
 
@@ -402,15 +402,28 @@ I think I'll take the annual mean and maximum of each nutrient concentration.
 ```{r}
 water_means <- water %>%
   pivot_longer(cols=c(po4,no2_no3,urea,ammonia,tchl), names_to="ctd.var", values_to="value") %>%
+  mutate(value=ifelse(is.nan(value),NA,value)) %>%
   group_by(station,year,target_depth_m, ctd.var) %>%
-  summarise(mean=mean(value,na.rm=TRUE), max=max(value,na.rm=TRUE)) %>%
-  pivot_wider(names_from=ctd.var,values_from=c(mean,max))
+  summarise(mean=mean(as.numeric(value),na.rm=TRUE), max=0) %>%
+  pivot_wider(names_from=ctd.var,values_from=c(mean,max)) 
+water_means <- water_means[,1:8]
+
+water_maxes <- water %>%
+   pivot_longer(cols=c(po4,no2_no3,urea,ammonia,tchl), names_to="ctd.var", values_to="value") %>%
+  mutate(value=ifelse(is.nan(value),NA,value)) %>%
+  filter(!is.na(value)) %>%
+  group_by(station,year,target_depth_m, ctd.var) %>%
+  summarise(max=max(as.numeric(value),na.rm=TRUE),mean=0) %>%
+  pivot_wider(names_from=ctd.var,values_from=c(max,mean))
+water_out <- water_maxes[,1:8] %>%
+  left_join(water_means, by=c("station","year","target_depth_m"))
+head(water_out)
 ```
 <br>
 
 write out.
 ```{r}
-write.csv(water_means, here::here("data","Annual_CTD_WaterChemistry_MeanMax_2000-2018.csv"),row.names=FALSE)
+write.csv(water_out, here::here("data","Annual_CTD_WaterChemistry_MeanMax_2000-2018.csv"),row.names=FALSE)
 ```
 <br>
 
