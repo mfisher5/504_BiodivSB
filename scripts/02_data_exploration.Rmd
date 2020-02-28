@@ -1,0 +1,51 @@
+---
+title: "SBC Data Exploration"
+author: "Mary Fisher"
+date: "February 28, 2020"
+output: 
+  html_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(janitor)
+library(here)
+library(vegan)
+library(lubridate)
+```
+
+
+
+## Data 
+
+Kelp data
+```{r}
+kelp <- read.csv(here::here("data","Annual_Kelp_MeanSize_MeanAbund_2001-2018.csv"))
+```
+<br>
+
+Fish community data
+```{r}
+fish <- read.csv(here::here("data","Annual_Fish_RichnessAbundDiversity_2001-2018.csv"))
+```
+<br>
+
+Combine data sets
+```{r}
+sbc <- left_join(kelp,fish)
+```
+<br>
+
+
+
+
+
+## Question 1
+
+How does fish / invertebrate community abundance and diversity vary according to giant kelp size and abundance, and oceanographic conditions?
+
+```{r}
+```
+<br>

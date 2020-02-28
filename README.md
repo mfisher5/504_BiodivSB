@@ -29,27 +29,39 @@ Marine ecosystems are subject to natural variability in environmental conditions
 #### Research Questions
 
 How are oceanographic conditions and herbivore abundance correlated with giant kelp size and abundance?
-How does fish community abundance and diversity vary according to giant kelp size and abundance, and oceanographic conditions?
+
+How does fish / invertebrate community abundance and diversity vary according to giant kelp size and abundance, and oceanographic conditions?
 
 #### Variables
+
+**Habitat**
 
 Kelp Abundance: Kelp fronds / m, by transect (replicate) and site
 
 Kelp Size: Diameter of the kelp holdfast, by transect (replicate) and site. *Only measured for large observed Macrocystis individuals with holdfast > 20cm*
 
+**Vertebrate / Invertebrate Community** 
+
 Fish Species Richness: Number of different fish species present, by transect (replicate) and site. Calculated as: Richness = number of species / sqrt(number of individuals)
 
-Fish Species Abundance: Diversity of fish species present, by transect (replicate) and site. Calculated as: Shannon index = ∑ (pl) |ln pl|, Where (pl) is the proportion of the total number of individuals in the population that are in species “l”.
+Fish Species Abundance: Number of individual fish species present, by transect (replicate) and site.
+
+Fish Species Diversity: Diversity of fish species present, by transect (replicate) and site. Calculated as: Shannon index = ∑ (pl) |ln pl|, Where (pl) is the proportion of the total number of individuals in the population that are in species “l”.
+
+Fish Taxon Diversity: Diversity of fish taxa (order) present, by transect (replicate) and site. 
 
 Invertebrate Species Richness
 
 Invertebrate Species Abundance
 
-Urchin Abundance: individuals / m, by transect (replicate) and site. Urchins are herbivores that eat kelp; they have played a large role in the decline of kelp forests. 
+Urchin Abundance: individuals / m^2, by transect (replicate) and site. Urchins are herbivores that eat kelp; they have played a large role in the decline of kelp forests. 
+
+**Water Temperature and Quality**
+
+Seasonal Bottom Temperature: mean of, and variation in, bottom temperature during the summer and winter seasons, by site. In Celsius. 
 
 
-
-#### Covariates (Biological Community)
+#### Potential Covariates 
 
 Site: Sampling site. There are eight coastal sites included in this data set. 
 

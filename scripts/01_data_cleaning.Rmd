@@ -115,7 +115,7 @@ write.csv(kelp_means,here::here("data","Annual_Kelp_MeanSize_MeanAbund_2001-2018
 I'm going to grab the data for the mainland sites, for 2001 onward. 
 
 ```{r}
-fish_thin <- dplyr::select(fish, year, month, date,site,transect, quad,side,survey,sp_code,scientific_name,group,size,count,area) %>%
+fish_thin <- dplyr::select(fish, year, month, date,site,transect, quad,side,survey,taxon_order, sp_code,scientific_name,group,size,count,area) %>%
   filter(year >= 2001) %>%
   filter(!(site == "IVEE" & transect %in% c(3,5,6,7,8)))
 head(fish_thin)
@@ -128,10 +128,14 @@ I'll summarize this data set using (1) species richness, (2) species abundance, 
 *Species richness* is the number of species at a site. Only the "cryptic fish" survey method - observing fish sitting on the bottom using a quadrat - includes a side and quadrat measurement for the transect. Under the assumption that these fish did not move during the survey (since they are usually small with limited ranges), I'm going to sum the number of species across quadrats / sides. Just in case, I'll also calculate species richness with Menhinick's index - the number of species (n) divided by the square-root of the total number of individuals (N).
 *Species abundance* is just the total number of individual fish at a site. Since survey methods were consistent over time, we can use a raw abundance measure instead of a density estimate.
 ```{r}
-richness <- fish_thin %>%
+sp.richness <- fish_thin %>%
   group_by(year,month,date,site,transect,survey) %>%
   filter(count != 0) %>%
-  summarise(richness = length(unique(sp_code)), menhinick.richness = richness / sqrt(sum(count)))
+  summarise(sp.richness = length(unique(sp_code)), sp.mrichness = sp.richness / sqrt(sum(count)))
+order.richness <- fish_thin %>%
+  group_by(year,month,date,site,transect,survey) %>%
+  filter(count != 0) %>%
+  summarise(order.richness = length(unique(taxon_order)), order.mrichness = order.richness / sqrt(sum(count)))
 
 abundance <- fish_thin %>%
    group_by(year,month,date,site,transect,survey) %>%
@@ -155,19 +159,150 @@ fish_wide_ids <- dplyr::select(fish_wide,c(year,month,date,site,transect,survey)
 simpson.div <- diversity(fish_wide_data,index="simpson")
 shannon.div <- diversity(fish_wide_data)
   
-diversity <- fish_wide_ids %>%
+sp.diversity <- fish_wide_ids %>%
   mutate(div.simpson = simpson.div, div.shannon = shannon.div)
+```
+<br>
+
+In case species-level data isn't reliable, I'll also calculate order-level diversity.
+```{r}
+fish_wide <- fish_thin %>%
+  # get total count for each species, across quadrats / sides when appropriate
+  group_by(year,month,date,site,transect,survey,taxon_order) %>%
+  summarise(total_count = sum(count)) %>%
+  # make data frame longer so each species has its own column
+  pivot_wider(id_cols=c(year,month,date,site,transect,survey), names_from=taxon_order, values_from=total_count) %>% ungroup()
+# grab just the data and just the ids
+fish_wide_data <- dplyr::select(fish_wide,-c(year,month,date,site,transect,survey))
+fish_wide_data[is.na(fish_wide_data)] <- 0
+fish_wide_ids <- dplyr::select(fish_wide,c(year,month,date,site,transect,survey))
+# calculate diversity
+simpson.div <- diversity(fish_wide_data,index="simpson")
+shannon.div <- diversity(fish_wide_data)
+  
+diversity <- fish_wide_ids %>%
+  mutate(order.div.simpson = simpson.div, order.div.shannon = shannon.div) %>%
+  left_join(sp.diversity,by=c("year","month","date","site","transect","survey"))
 ```
 <br>
 
 Combine the data sets and write out: 
 ```{r}
-fish_out <- left_join(richness,abundance,by=c("year","month","date","site","transect","survey")) %>%
+fish_out <- left_join(sp.richness,abundance,by=c("year","month","date","site","transect","survey")) %>%
+  left_join(order.richness, by=c("year","month","date","site","transect","survey")) %>%
   left_join(diversity, by=c("year","month","date","site","transect","survey"))
 head(fish_out)
 write.csv(fish_out, here::here("data","Annual_Fish_RichnessAbundDiversity_2001-2018.csv"),row.names=FALSE)
 ```
 <br>
+
+#### Invertebrate Data
+
+*LTER site Abstract:* These data describe the density and size of a select group of about 50 species of benthic invertebrates and understory algae in fixed plots (either 1m x 1m or 20m x 1m) along permanent transects. These data are part of SBCLTER's kelp forest monitoring program to track long-term patterns in species abundance and diversity of reef-associated organisms in the Santa Barbara Channel, California, USA. The sampling locations in this dataset are at nine reef sites along the mainland coast of the Santa Barbara Channel and at two sites on the north side of Santa Cruz Island. These sites reflect several oceanographic regimes in the channel and vary in distance from sources of terrestrial runoff. Sampling began in 2000, and these data are updated annually. The time period of data collection varied among the 11 kelp forest sites. Sampling at BULL, CARP, and NAPL began in 2000, sampling at the other 6 mainland sites (AHND, AQUE, IVEE, GOLB, ABUR, MOHK) began in 2001 (transects 3, 5, 6, 7, 8 at IVEE were added in 2011). Data collection at the two Santa Cruz Island sites (SCTW and SCDI) began in 2004. See Methods for more information.  
+
+
+I'm going to grab the data for invertebrates from the mainland sites, for 2001 onward. 
+
+```{r}
+invert_thin <- dplyr::select(invert, year, month, date,site,transect, quad,side,survey,taxon_order, sp_code,scientific_name,group,size,count,area) %>%
+  filter(group=="INVERT") %>%
+  filter(year >= 2001) %>%
+  filter(!(site == "IVEE" & transect %in% c(3,5,6,7,8)))
+head(invert_thin)
+```
+<br>
+
+I'll then use essentially the same metrics as calculated above, for the fish data set. I'm also going to add a column with urchin abundance (urchins / m^2). 
+
+Species richness and abundance
+```{r}
+sp.richness <- invert_thin %>%
+  group_by(year,month,date,site,transect,survey) %>%
+  filter(count != 0) %>%
+  summarise(sp.richness = length(unique(sp_code)), sp.mrichness = sp.richness / sqrt(sum(count)))
+
+abundance <- invert_thin %>%
+   group_by(year,month,date,site,transect,survey) %>%
+  summarise(abundance = sum(count))
+```
+<br>
+
+Species diversity
+```{r}
+invert_wide <- invert_thin %>%
+  # get total count for each species, across quadrats / sides when appropriate
+  group_by(year,month,date,site,transect,survey,sp_code) %>%
+  summarise(total_count = sum(count)) %>%
+  # make data frame longer so each species has its own column
+  pivot_wider(id_cols=c(year,month,date,site,transect,survey), names_from=sp_code, values_from=total_count) %>% ungroup()
+# grab just the data and just the ids
+invert_wide_data <- dplyr::select(invert_wide,-c(year,month,date,site,transect,survey))
+invert_wide_data[is.na(invert_wide_data)] <- 0
+invert_wide_ids <- dplyr::select(invert_wide,c(year,month,date,site,transect,survey))
+# calculate diversity
+simpson.div <- diversity(invert_wide_data,index="simpson")
+shannon.div <- diversity(invert_wide_data)
+  
+sp.diversity <- invert_wide_ids %>%
+  mutate(div.simpson = simpson.div, div.shannon = shannon.div)
+```
+<br>
+
+Taxon (order) richness and diversity
+```{r}
+order.richness <- invert_thin %>%
+  group_by(year,month,date,site,transect,survey) %>%
+  filter(count != 0) %>%
+  summarise(order.richness = length(unique(taxon_order)), order.mrichness = order.richness / sqrt(sum(count)))
+
+invert_wide <- invert_thin %>%
+  # get total count for each species, across quadrats / sides when appropriate
+  group_by(year,month,date,site,transect,survey,taxon_order) %>%
+  summarise(total_count = sum(count)) %>%
+  # make data frame longer so each species has its own column
+  pivot_wider(id_cols=c(year,month,date,site,transect,survey), names_from=taxon_order, values_from=total_count) %>% ungroup()
+# grab just the data and just the ids
+invert_wide_data <- dplyr::select(invert_wide,-c(year,month,date,site,transect,survey))
+invert_wide_data[is.na(invert_wide_data)] <- 0
+invert_wide_ids <- dplyr::select(invert_wide,c(year,month,date,site,transect,survey))
+# calculate diversity
+simpson.div <- diversity(invert_wide_data,index="simpson")
+shannon.div <- diversity(invert_wide_data)
+  
+order.diversity <- invert_wide_ids %>%
+  mutate(order.div.simpson = simpson.div, order.div.shannon = shannon.div)
+```
+<br>
+
+Urchin abundance
+```{r}
+urchins <- invert %>%
+  filter(taxon_family == "Strongylocentrotidae") %>%
+  dplyr::select(year, month, date,site,transect, quad,side,taxon_order, sp_code,scientific_name,group,size,count,area) %>%
+  filter(year >= 2001) %>%
+  filter(!(site == "IVEE" & transect %in% c(3,5,6,7,8))) %>%
+  group_by(year,month,date,site,transect,scientific_name) %>%
+  summarise(abund = sum(count)) %>%
+  pivot_wider(names_from=scientific_name,values_from=abund) %>%
+  rename(franciscanus.abundance=`Mesocentrotus franciscanus`,purpuratus.abundance=`Strongylocentrotus purpuratus`) %>%
+  mutate(urchin.abundance=sum(franciscanus.abundance, purpuratus.abundance))
+```
+<br>
+
+Combine variables and write out. 
+```{r}
+invert_out <- left_join(sp.richness,abundance, by=c("year","month","date","site","transect")) %>%
+  left_join(sp.diversity, by=c("year","month","date","site","transect")) %>%
+  left_join(order.richness, by=c("year","month","date","site","transect")) %>%
+  left_join(order.diversity, by=c("year","month","date","site","transect")) %>%
+  left_join(urchins, by=c("year","month","date","site","transect"))
+
+write.csv(invert_out, here::here("data","Annual_Invert_RichnessAbundDiversity_2001-2018.csv"), row.names=FALSE)
+```
+<br>
+<br>
+
+---
 
 
 ## Oceanographic data
@@ -184,7 +319,17 @@ colnames(temp_raw); dim(temp_raw)
 ```
 <br>
 
-water chemistry measurements taken monthly at these reefs in the nearshore areas of the Santa Barbara Channel, CA, USA: Arroyo Quemado, Bullito, Naples, Arroyo Burro, Mohawk and Carpinteria. ongoing since 2003.
+Water chemistry measurements, ongoing since 2003.
+```{r}
+water_raw <- read_delim(here::here("data","raw","LTER_monthly_bottledata_20190904.txt"),delim=";") %>%
+  clean_names() %>%
+  remove_empty("rows") %>%
+  na_if(-99999) %>%
+  na_if(99999)
+colnames(water_raw); dim(water_raw)
+```
+<br>
+
 
 ### Process Data
 
@@ -222,6 +367,52 @@ write.csv(tempdat_means, here::here("data","Seasonal_Mean_Bottom_Temp_2002-2019.
 <br>
 
 
+#### Water chemistry data
+
+**LTER Abstract:** water chemistry measurements taken monthly at these reefs in the nearshore areas of the Santa Barbara Channel, CA, USA: Arroyo Quemado, Bullito, Naples, Arroyo Burro, Mohawk and Carpinteria. ongoing since 2003. Measurements include standard CTD parameters, nutrients, pigments, particulate CN, total dissolved N and P, stable isotopes of C and N (not all parameters are measured at all stations). Sampling began in November 2000. Some stations are sampled only occasionally. During the first 2 years, CTD data were collected with a SBE19 Seacat Profiler and water samples with a pump. Starting in February 2003, a SBE19-Plus with a rosette sampler was used.
+
+I'm interested in total dissolved nitrogen and phosphorus (how nutrient-rich is the water? can also be an indication of run-off, and kelp is known to require nitrogen to grow). I'll also look at chlorophyll (indicates primary productivity), urea (indicates run-off, as a common fertilizer).
+
+```{r}
+water <- water_raw %>%
+  dplyr::select(station, mon_day_yr, hh_mm, target_depth_m,
+               po4_umol_l,no2_no3_umol_l,urea_umol_l,ammonia_umol_l,
+               total_chl_ug_l) %>%
+  na_if("BDL") %>%
+  filter(station %in% c("BR","AB","CR","MK","NR","QR")) %>%
+  mutate(station = recode(station, BR="BULL", AB ="ABUR", CR="CARP", MK="MOHK", NR="NAPL", QR="AQUE")) %>%
+  # get a daily average
+  group_by(station, mon_day_yr,target_depth_m) %>%
+  summarise(po4=mean(as.numeric(po4_umol_l), na.rm=TRUE), no2_no3=mean(as.numeric(no2_no3_umol_l), na.rm=TRUE),
+            urea=mean(as.numeric(urea_umol_l),na.rm=TRUE),ammonia=mean(as.numeric(ammonia_umol_l),na.rm=TRUE),
+            tchl=mean(as.numeric(total_chl_ug_l),na.rm=TRUE)) %>%
+  mutate(read_date=mdy(mon_day_yr), year=year(read_date))
+```
+<br>
+
+How does po4 / total chlorophyll vary by site, across the course of a year?
+```{r}
+ggplot(data=filter(water,year %in% c(2010,2011) & target_depth_m==1), aes(x=read_date,y=po4, col=station)) + geom_line()
+
+ggplot(data=filter(water,year %in% c(2010,2011) & target_depth_m==1), aes(x=read_date,y=tchl, col=station)) + geom_line()
+```
+<br>
+
+I think I'll take the annual mean and maximum of each nutrient concentration.
+```{r}
+water_means <- water %>%
+  pivot_longer(cols=c(po4,no2_no3,urea,ammonia,tchl), names_to="ctd.var", values_to="value") %>%
+  group_by(station,year,target_depth_m, ctd.var) %>%
+  summarise(mean=mean(value,na.rm=TRUE), max=max(value,na.rm=TRUE)) %>%
+  pivot_wider(names_from=ctd.var,values_from=c(mean,max))
+```
+<br>
+
+write out.
+```{r}
+write.csv(water_means, here::here("data","Annual_CTD_WaterChemistry_MeanMax_2000-2018.csv"),row.names=FALSE)
+```
+<br>
 
 
 
