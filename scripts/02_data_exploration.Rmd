@@ -37,8 +37,7 @@ library(MASS)
 
 For question 1, I need the kelp, fish, and invertebrate data.
 ```{r}
-kelp <- read.csv(here::here("data","Annual_Kelp_MeanSize_MeanAbund_2001-2018.csv")) %>% dplyr::select(-sp_code,-scientific_name, -group) %>%
-  rename(kelp_mean_abund=mean_abund, kelp_max_abund=max_abund,kelp_mean_size=mean_size,kelp_max_size=max_size)
+kelp <- read.csv(here::here("data","Annual_Kelp_MeanSize_MeanAbund_2001-2018.csv")) %>% dplyr::select(-scientific_name, -group)
 fish <- read.csv(here::here("data","Annual_Fish_RichnessAbundDiversity_2001-2018.csv")) %>% 
   filter(survey=="FISH") %>% dplyr::select(-date, -survey)
 invert <- read.csv(here::here("data","Annual_Invert_RichnessAbundDiversity_2001-2018.csv")) %>% dplyr::select(-survey.x,-survey.x.x,-survey.y,-survey.y.y,-date, -franciscanus.abundance,-purpuratus.abundance,-urchin.abundance)
@@ -69,35 +68,35 @@ head(dat2_urchins); head(dat2_water)
 How does fish community abundance and diversity vary according to giant kelp abundance?
 
 ```{r}
-abund_fish <- q1dat_fish %>% dplyr::select(-kelp_mean_size,-kelp_max_size)
-corrplot(cor(abund_fish[,6:16],use="complete.obs"), type="upper")
+abund_fish <- q1dat_fish %>% dplyr::select(-MAPY_mean_size,-MAPY_max_size)
+corrplot(cor(abund_fish[,5:15],use="pairwise.complete.obs"), type="upper")
 ```
 <br>
 
 How does fish community abundance and diversity vary according to giant kelp size?
 
 ```{r}
-size_fish <- q1dat_fish %>% dplyr::select(-kelp_mean_abund,-kelp_max_abund) %>%
-  filter(!is.na(kelp_mean_size))
-corrplot(cor(size_fish[,6:16],use="complete.obs"), type="upper")
+size_fish <- q1dat_fish %>% dplyr::select(-MAPY_mean_abund,-MAPY_max_abund) %>%
+  filter(!is.na(MAPY_mean_size))
+corrplot(cor(size_fish[,5:15],use="complete.obs"), type="upper")
 ```
 <br>
 
-### Invertebrate Community Composisiont
+### Invertebrate Community Composition
 How does invertebrate community abundance and diversity vary according to giant kelp abundance?
 
 ```{r}
-abund_invert <- q1dat_invert %>% dplyr::select(-kelp_mean_size,-kelp_max_size, -survey)
-corrplot(cor(abund_invert[,6:16],use="complete.obs"), type="upper")
+abund_invert <- q1dat_invert %>% dplyr::select(-MAPY_mean_size,-MAPY_max_size, -survey)
+corrplot(cor(abund_invert[,5:15],use="complete.obs"), type="upper")
 ```
 <br>
 
 How does invertebrate community abundance and diversity vary according to giant kelp size?
 
 ```{r}
-size_invert <- q1dat_invert %>% dplyr::select(-kelp_mean_abund,-kelp_max_abund,-survey) %>%
-  filter(!is.na(kelp_mean_size))
-corrplot(cor(size_invert[,6:16],use="complete.obs"), type="upper")
+size_invert <- q1dat_invert %>% dplyr::select(-MAPY_mean_abund,-MAPY_max_abund,-survey) %>%
+  filter(!is.na(MAPY_mean_size))
+corrplot(cor(size_invert[,5:15],use="complete.obs"), type="upper")
 ```
 <br>
 
@@ -122,14 +121,14 @@ corrplot(cor(invert_fish[5:13],invert_fish[14:22],use="complete.obs"), type="upp
 
 How does kelp size / abundance vary according to sea urchin density?
 ```{r}
-corrplot(cor(dat2_urchins[,6:12],use="complete.obs"), type="upper")
+corrplot(cor(dat2_urchins[,5:11],use="complete.obs"), type="upper")
 ```
 <br>
 
 How does kelp size / abundance vary according to water chemistry?
 ```{r}
-kelp_chem_means <- filter(dat2_water, site %in% unique(waterchem$station)) %>% filter(!is.na(target_depth_m)) %>% dplyr::select(-target_depth_m) %>% dplyr::select(6:9,15:19)
-kelp_chem_max <- filter(dat2_water, site %in% unique(waterchem$station)) %>% filter(!is.na(target_depth_m)) %>% dplyr::select(-target_depth_m) %>% dplyr::select(6:14)
+kelp_chem_means <- filter(dat2_water, site %in% unique(waterchem$station)) %>% filter(!is.na(target_depth_m)) %>% dplyr::select(-target_depth_m) %>% dplyr::select(5:8,14:18)
+kelp_chem_max <- filter(dat2_water, site %in% unique(waterchem$station)) %>% filter(!is.na(target_depth_m)) %>% dplyr::select(-target_depth_m) %>% dplyr::select(5:13)
 corrplot(cor(kelp_chem_max,use="complete.obs"), type="upper")
 corrplot(cor(kelp_chem_means,use="complete.obs"), type="upper")
 ```

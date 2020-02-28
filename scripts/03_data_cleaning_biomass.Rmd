@@ -1,0 +1,73 @@
+---
+title: "Pre-process Biomass Data"
+author: "Mary Fisher"
+date: "February 28, 2020"
+output: 
+  html_document:
+    toc:
+      toc_float: yes
+---
+
+
+Since there was minimal correlation between the fish / invertebrate metrics of abundance, richness and diversity, I'm going to look at the biomass data which the SBC LTER website has pre-calculated. 
+
+<br>
+
+```{r setup, include=FALSE}
+rm(list=ls())
+
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(janitor)
+library(here)
+library(vegan)
+library(lubridate)
+library(corrplot)
+library(MASS)
+```
+
+## Raw Data
+
+*SBCLTER Abstract*: These data are annual estimates of biomass of approximately 225 taxa of reef algae, invertebrates and fish in permanent transects at 11 kelp forest sites in the Santa Barbara Channel (2-8 transects per site). Abundance is measured annually (as percent cover or density, by size) and converted to biomass (i.e., wet mass, dry mass, decalcified dry mass, ash free dry mass) using published taxon-specific algorithms. Data collection began in summer 2000 and continues annually in summer to provide information on community structure, population dynamics and species change. The time period of data collection varied among the 11 kelp forest sites. Sampling at BULL, CARP, and NAPL began in 2000, sampling at the other 6 mainland sites (AHND, AQUE, IVEE, GOLB, ABUR, MOHK) began in 2001 (transects 3, 5, 6, 7, 8 at IVEE were added in 2011). Data collection at the two Santa Cruz Island sites (SCTW and SCDI) began in 2004. See Methods for more information.   See Methods for more information.   
+
+```{r}
+biomass <- read.csv(here::here("data","raw","Annual_All_Species_Biomass_at_transect_20200108.csv")) %>%
+  clean_names() %>%
+  na_if(99999) %>%
+  na_if(-99999)
+dim(biomass)
+colnames(biomass)
+```
+<br>
+
+types of biomass calculations per group? I'll stick with dry mass for now.
+```{r}
+biomass %>% group_by(group) %>% summarise(wm=sum(!is.na(wm_gm2))/length(wm_gm2),
+                                          dry=sum(!is.na(dry_gm2))/length(dry_gm2),
+                                          ash=sum(!is.na(afdm))/length(afdm))
+```
+<br>
+
+## Process data
+
+Total and mean biomass per group / site / transect. 
+```{r}
+total_biomass <- biomass %>%
+  filter(group != "ALGAE") %>%
+  group_by(year,month,site,group) %>%
+  summarise(total_biomass = sum(dry_gm2,na.rm=TRUE), mean_biomass=mean(dry_gm2, na.rm=TRUE)) %>%
+  pivot_longer(cols=c(total_biomass,mean_biomass)) %>%
+  pivot_wider(names_from=c(group,name))
+```
+<br>
+
+
+
+
+
+
+
+
+
+
+

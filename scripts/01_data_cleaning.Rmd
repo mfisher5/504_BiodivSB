@@ -81,21 +81,27 @@ head(kelp_thin)
 <br>
 
 Now I have to summarise the size / abundance of kelp at each site. The data was collected in quadrats along permanent transects, so each transect is a replicate. A transect has 2 sections ("quad"), 0-20m and 20-40m, and 2 sides ("side"), inshore and offshore. For abundance, I want to first calculate the mean and maximum fronds / m of the transect. For size, I want to calculate the mean  and maximum holdfast diameter per transect.
+
+There are four species codes in the kelp data set, representing different life stages: MAPY (adult giant kelp), MH (giant kelp holdfast), MJ (juvenile giant kelp), and MPS (stipe giant kelp). Two of these (MAPY, MPS) are present in the data set. I'll just calculate the total abundance and mean size for adults.
 ```{r}
 kelp_abund <- kelp_thin %>%
+  filter(sp_code=="MAPY") %>%
   #calculate fronds / m^2
-  group_by(year, month, site,transect,obs_code,sp_code,scientific_name,group,quad,side) %>%
+  group_by(year, month, site,transect,scientific_name,group,quad,side) %>%
   summarise(abund=sum(fronds,na.rm=TRUE)/sum(area)) %>%
   #mean of fronds / m
-  group_by(year, month, site,transect,obs_code,sp_code,scientific_name,group) %>%
-  summarise(mean_abund=mean(abund,na.rm=TRUE),max_abund=max(abund,na.rm=TRUE))
+  group_by(year, month, site,transect,scientific_name,group) %>%
+  summarise(MAPY_mean_abund=mean(abund,na.rm=TRUE),MAPY_max_abund=max(abund,na.rm=TRUE))
 
 kelp_size <- kelp_thin %>%
+  filter(sp_code=="MAPY") %>%
   #mean of holdfast diameter, per transect
-  group_by(year, month, site,transect,obs_code,sp_code,scientific_name,group) %>%
-  summarise(mean_size=mean(hld_diam,na.rm=TRUE),max_size=max(hld_diam,na.rm=TRUE))
+  group_by(year, month, site,transect,scientific_name,group) %>%
+  summarise(MAPY_mean_size=mean(hld_diam,na.rm=TRUE),MAPY_max_size=max(hld_diam,na.rm=TRUE)) %>%
+  na_if(NaN) %>%
+  na_if(-Inf)
 
-kelp_means <- full_join(kelp_abund,kelp_size,by=c("year", "month", "site","transect","obs_code","sp_code","scientific_name","group"))
+kelp_means <- full_join(kelp_abund,kelp_size,by=c("year", "month", "site","transect","scientific_name","group"))
 
 head(kelp_means)
 ```
