@@ -13,6 +13,7 @@ library(tidyverse)
 library(janitor)
 library(here)
 library(vegan)
+library(lubridate)
 ```
 
 ## Biological Communities Data
@@ -79,7 +80,7 @@ head(kelp_thin)
 ```
 <br>
 
-Now I have to summarise the size / abundance of kelp at each site. The data was collected in quadrats along permanent transects, so each transect is a replicate. A transect has 2 sections ("quad"), 0-20m and 20-40m, and 2 sides ("side"), inshore and offshore. For abundance, I want to first calculate the mean fronds / m of the transect. For size, I want to calculate the mean holdfast diameter per transect.
+Now I have to summarise the size / abundance of kelp at each site. The data was collected in quadrats along permanent transects, so each transect is a replicate. A transect has 2 sections ("quad"), 0-20m and 20-40m, and 2 sides ("side"), inshore and offshore. For abundance, I want to first calculate the mean and maximum fronds / m of the transect. For size, I want to calculate the mean  and maximum holdfast diameter per transect.
 ```{r}
 kelp_abund <- kelp_thin %>%
   #calculate fronds / m
@@ -87,12 +88,12 @@ kelp_abund <- kelp_thin %>%
   summarise(abund=median(fronds,na.rm=TRUE)/unique(area)) %>%
   #mean of fronds / m
   group_by(year, month, site,transect,obs_code,sp_code,scientific_name,group) %>%
-  summarise(mean_abund=mean(abund,na.rm=TRUE))
+  summarise(mean_abund=mean(abund,na.rm=TRUE),max_abund=max(abund,na.rm=TRUE))
 
 kelp_size <- kelp_thin %>%
   #mean of holdfast diameter, per transect
   group_by(year, month, site,transect,obs_code,sp_code,scientific_name,group) %>%
-  summarise(mean_size=mean(hld_diam,na.rm=TRUE))
+  summarise(mean_size=mean(hld_diam,na.rm=TRUE),max_size=max(hld_diam,na.rm=TRUE))
 
 kelp_means <- full_join(kelp_abund,kelp_size,by=c("year", "month", "site","transect","obs_code","sp_code","scientific_name","group"))
 
