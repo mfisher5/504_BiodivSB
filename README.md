@@ -35,7 +35,7 @@ How does fish community abundance and diversity vary according to giant kelp siz
 
 Kelp Abundance: Kelp fronds / m, by transect (replicate) and site
 
-Kelp Size: Diameter of the kelp holdfast, by transect (replicate) and site
+Kelp Size: Diameter of the kelp holdfast, by transect (replicate) and site. *Only measured for large observed Macrocystis individuals with holdfast > 20cm*
 
 Fish Species Richness: Number of different fish species present, by transect (replicate) and site. Calculated as: Richness = number of species / sqrt(number of individuals)
 

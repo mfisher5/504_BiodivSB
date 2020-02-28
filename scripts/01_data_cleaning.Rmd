@@ -73,7 +73,8 @@ unique(invert$sp_code); unique(invert$taxon_order)
 I'm going to grab the data for the mainland sites, for 2001 onward. 
 ```{r}
 kelp_thin <- dplyr::select(kelp, year, month, date,site,transect,obs_code, quad,side,survey,sp_code,scientific_name,group,fronds,hld_diam,area) %>%
-  filter(year >= 2001)
+  filter(year >= 2001) %>%
+  filter(!(site == "IVEE" & transect %in% c(3,5,6,7,8)))
 head(kelp_thin)
 ```
 <br>
@@ -107,21 +108,63 @@ write.csv(kelp_means,here::here("data","Annual_Kelp_MeanSize_MeanAbund_2001-2018
 
 
 #### Fish Data
-*LTER site Abstract:* These data describe the abundance and size of fish species as part of SBCLTER's kelp forest monitoring program to track long-term patterns in species abundance and diversity. The abundance and size of all taxa of resident kelp forest fish encountered along permanent transects are recorded at nine reef sites located along the mainland coast of the Santa Barbara Channel and at two sites on the north side of Santa Cruz Island. These sites reflect several oceanographic regimes in the channel and vary in distance from sources of terrestrial runoff. In these surveys, fish were counted in a 40x2m benthic quadrat, or in the water parcel 0-2m off the bottom over the same area. The two tables in this data package include: 1) The annual benthic fish community survey which was conducted on 11 reefs once a year around late July or early August. The time period of data collection for the annual benthic fish community survey varied among the 11 kelp forest sites. Sampling at BULL, CARP, and NAPL began in 2000, sampling at the other 6 mainland sites (AHND, AQUE, IVEE, GOLB, ABUR, MOHK) began in 2001 (transects 3, 5, 6, 7, 8 at IVEE were added in 2011). 
+*LTER site Abstract:* These data describe the abundance and size of fish species as part of SBCLTER's kelp forest monitoring program to track long-term patterns in species abundance and diversity. The abundance and size of all taxa of resident kelp forest fish encountered along permanent transects are recorded at nine reef sites located along the mainland coast of the Santa Barbara Channel and at two sites on the north side of Santa Cruz Island. These sites reflect several oceanographic regimes in the channel and vary in distance from sources of terrestrial runoff. In these surveys, fish were counted in a 40x2m benthic quadrat ("cryptic fish"), or in the water parcel 0-2m off the bottom over the same area ("fish"). The annual benthic fish community survey which was conducted on 11 reefs once a year around late July or early August. The time period of data collection for the annual benthic fish community survey varied among the 11 kelp forest sites. Sampling at BULL, CARP, and NAPL began in 2000, sampling at the other 6 mainland sites (AHND, AQUE, IVEE, GOLB, ABUR, MOHK) began in 2001 (transects 3, 5, 6, 7, 8 at IVEE were added in 2011). 
 
 
 I'm going to grab the data for the mainland sites, for 2001 onward. 
+
 ```{r}
-kelp_thin <- dplyr::select(kelp, year, month, date,site,transect,obs_code, quad,side,survey,sp_code,scientific_name,group,fronds,hld_diam,area) %>%
+fish_thin <- dplyr::select(fish, year, month, date,site,transect, quad,side,survey,sp_code,scientific_name,group,size,count,area) %>%
   filter(year >= 2001) %>%
-  filter()
-head(kelp_thin)
+  filter(!(site == "IVEE" & transect %in% c(3,5,6,7,8)))
+head(fish_thin)
 ```
 <br>
 
 
-I am going to summarize this data set using (1) species richness, (2) species abundance, and (3) size structure. 
+I'll summarize this data set using (1) species richness, (2) species abundance, and (3) size structure, per side / quad / transect.
+
+*Species richness* is the number of species at a site. Only the "cryptic fish" survey method - observing fish sitting on the bottom using a quadrat - includes a side and quadrat measurement for the transect. Under the assumption that these fish did not move during the survey (since they are usually small with limited ranges), I'm going to sum the number of species across quadrats / sides. Just in case, I'll also calculate species richness with Menhinick's index - the number of species (n) divided by the square-root of the total number of individuals (N).
+*Species abundance* is just the total number of individual fish at a site. Since survey methods were consistent over time, we can use a raw abundance measure instead of a density estimate.
 ```{r}
+richness <- fish_thin %>%
+  group_by(year,month,date,site,transect,survey) %>%
+  filter(count != 0) %>%
+  summarise(richness = length(unique(sp_code)), menhinick.richness = richness / sqrt(sum(count)))
+
+abundance <- fish_thin %>%
+   group_by(year,month,date,site,transect,survey) %>%
+  summarise(abundance = sum(count))
+```
+<br>
+
+*Species diversity* can be quantified in a couple of ways, but the most common is the Shannon Index: the uncertainty associated with predicting the identity of a new taxa given number of taxa and evenness in abundances of individuals within each taxa. Shannon's Index can range from 0 to 5, which may make it less appealing to work with than the Simpson's Index, which is a proportion that ranges from 0 to 1. Simpson's Index is the probability that two individuals drawn at random from an infinitely large community will be different species, and is less sensitive to rare species than the Shannon Index. So I'll calculate both here.  
+```{r}
+fish_wide <- fish_thin %>%
+  # get total count for each species, across quadrats / sides when appropriate
+  group_by(year,month,date,site,transect,survey,sp_code) %>%
+  summarise(total_count = sum(count)) %>%
+  # make data frame longer so each species has its own column
+  pivot_wider(id_cols=c(year,month,date,site,transect,survey), names_from=sp_code, values_from=total_count) %>% ungroup()
+# grab just the data and just the ids
+fish_wide_data <- dplyr::select(fish_wide,-c(year,month,date,site,transect,survey))
+fish_wide_data[is.na(fish_wide_data)] <- 0
+fish_wide_ids <- dplyr::select(fish_wide,c(year,month,date,site,transect,survey))
+# calculate diversity
+simpson.div <- diversity(fish_wide_data,index="simpson")
+shannon.div <- diversity(fish_wide_data)
+  
+diversity <- fish_wide_ids %>%
+  mutate(div.simpson = simpson.div, div.shannon = shannon.div)
+```
+<br>
+
+Combine the data sets and write out: 
+```{r}
+fish_out <- left_join(richness,abundance,by=c("year","month","date","site","transect","survey")) %>%
+  left_join(diversity, by=c("year","month","date","site","transect","survey"))
+head(fish_out)
+write.csv(fish_out, here::here("data","Annual_Fish_RichnessAbundDiversity_2001-2018.csv"),row.names=FALSE)
 ```
 <br>
 
@@ -129,6 +172,8 @@ I am going to summarize this data set using (1) species richness, (2) species ab
 ## Oceanographic data
 
 Continuous reef bottom temperature, ongoing since 2000.
+```{r}
+```
 
 water chemistry measurements taken monthly at these reefs in the nearshore areas of the Santa Barbara Channel, CA, USA: Arroyo Quemado, Bullito, Naples, Arroyo Burro, Mohawk and Carpinteria. ongoing since 2003.
 
