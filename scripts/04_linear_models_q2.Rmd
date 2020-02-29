@@ -5,6 +5,20 @@ date: "February 28, 2020"
 output: html_document
 ---
 
+#### Research Question: Can we predict giant kelp size and abundance from oceanographic conditions and herbivore abundance (predictor)?
+
+**Response variables:** Giant kelp mean abundance, max abundance; Giant kelp mean size, maximum size. 
+
+**Predictor variables: **
+
+1. Urchin abundance: Sea urchins are herbivores, and in large numbers (also called "herds") can decimate kelp forests. We have three measures of urchin abundance - red urchin abundance, purple urchin abundance, and urchin abundance across all species.
+
+2. Water chemistry: Like any algae / plant, kelp requires nutrients to grow. We have measurements for the following nutrients: nitrogen, ammonia, urea, and phosphorus. We also have chlorophyl concentrations, which is a general index of primary productivity.
+
+3. Water temperature: All species have a thermal range, or a range of temperatures, at which they grow best; the degree of variability in temperature can also have an impact on growth. With kelp forest loss from recent marine heatwaves and long-term warming, there has been much interest in whether kelp are impacted by an absolute temperature threshold, or by the degree of variability in temperature. We have mean summer and mean winter temperatures, and variation in summer and mean winter temperatures. 
+
+
+
 ```{r setup, include=FALSE}
 rm(list=ls())
 
@@ -29,7 +43,7 @@ head(mydat)
 <br>
 
 
-### Predictors
+## Multicolinearity / Predictor Selection
 
 ```{r}
 corrplot(cor(mydat[,9:14],use="complete.obs"), type="upper")
@@ -37,7 +51,7 @@ corrplot(cor(mydat[,15:21], use="complete.obs"), type="upper")
 ```
 <br>
 
-We have three variables that quantify urchin abundance - we'll just work with total abundance (`urchin_abundance`). Nitrogen and phosphorus are correlated, so we'll choose to look at nitrogen (`no2_no3`) because kelp integrate nitrogen to grow. 
+We have three variables that quantify urchin abundance - we'll just work with total abundance (`urchin_abundance`). Nitrogen and phosphorus are correlated, so we'll choose to look at nitrogen (`no2_no3`) because nitrogen is a key nutrient required for kelp growth. We also focused on mean seasonal temperatures, rather than the variability in seasonal temperature. 
 
 ```{r}
 lmdat <- mydat %>%
@@ -46,9 +60,11 @@ lmdat <- mydat %>%
 <br>
 
 
-### Model Selection
+## Model Selection & Diagnostics
 
-#### Size of Giant Kelp
+### Size of Giant Kelp
+
+#### Fit model
 ```{r}
 n <- dim(lmdat)[1]
 fit.a <- lm(mapy_mean_size ~ urchin_abundance+site+
@@ -94,11 +110,28 @@ How does RSE / R squared compare to full model
 summary(fit.a)
 ```
 <br>
-    
+
+#### Model Diagnostics
+
+It looks like this model violates the normality assumption, but there don't appear to be any outliers. The TA plot looks a little weird. 
+```{r}
+par(mfrow=c(2,2))
+plot(fit.f)
+```
+<br>
+
+Here is the right tail on the residuals:
+```{r}
+hist(fit.f$residuals)
+```
+<br>
+
     
 
 
-#### Abundance of Giant Kelp
+### Abundance of Giant Kelp
+
+#### Fit Model
 ```{r}
 n <- dim(lmdat)[1]
 fit.abund.e <- lm(mapy_mean_abund ~ 1,data=lmdat)
@@ -125,8 +158,21 @@ fit.abund.f <- step(fit.abund.a, direction = "backward",  k = log(n))
 summary(fit.abund.f)
 summary(fit.abund.a)
 ```
+<br>
 
+#### Model Diagnostics
 
+A bunch of things look weird here: the TA plot shows a fan shape, suggesting that our estimates are less precise at higher values. The model also violates the assumption of normality. 
+```{r}
+par(mfrow=c(2,2))
+plot(fit.abund.f)
+```
+<br>
+
+Here is the right tail on the residuals:
+```{r}
+hist(fit.abund.f$residuals)
+```
 
 
 
