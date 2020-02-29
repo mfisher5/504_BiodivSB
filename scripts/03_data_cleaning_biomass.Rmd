@@ -4,8 +4,8 @@ author: "Mary Fisher"
 date: "February 28, 2020"
 output: 
   html_document:
-    toc:
-      toc_float: yes
+    toc: yes
+    toc_float: yes
 ---
 <br>
 <br>
@@ -221,6 +221,7 @@ corrplot(cor(biomass_site_summary[,c(10:14)], use="complete.obs"), type="upper")
 
 First, all of the biomass metrics at the site-level.
 ```{r}
+colnames(biomass_site_summary)
 write.csv(biomass_site_summary, here::here("data","all_biomass_metrics_bysite.csv"), row.names=FALSE)
 ```
 <br>
@@ -231,6 +232,7 @@ biomass_thin <- dplyr::select(biomass_site_summary,
                               year,month,site,
                               fish_total_biomass,fish_diversity,invert_total_biomass,invert_diversity,algae_total_biomass,algae_diversity,
                               kelp_total_biomass)
+colnames(biomass_thin)
 
 write.csv(biomass_thin, here::here("data","biomass_prediction_data_bysite.csv"),row.names=FALSE)
 ```
@@ -238,17 +240,30 @@ write.csv(biomass_thin, here::here("data","biomass_prediction_data_bysite.csv"),
 
 Finally, read in the water chemistry variables and include that in the data set.
 ```{r}
-temp <- read.csv(here::here("data","Seasonal_Mean_Bottom_Temp_2002-2019.csv")) %>% dplyr::select(-sd.temp)
-  pivot_longer(cols=c(mean.temp,var.temp),names_to="measure",values_to="celsius") %>%
-  mutate(measure=recode(measure,"mean.temp"="mean_temp","var.temp"="var_temp"),
-         season=as.character(season))
-  pivot_wider(id_cols=c(site,year), names_from=c(season,measure),names_sep="_",values_from=celsius)
-biomass_thin <- left_join(biomass_thin, temp, by=c("site","year"))
+temp <- read.csv(here::here("data","Seasonal_Mean_Bottom_Temp_2002-2019.csv"))  %>%
+  dplyr::select(year,site,season,mean.temp,var.temp) %>%
+  rename(mean_temp=mean.temp,var_temp=var.temp) %>%
+  pivot_longer(cols=c(mean_temp,var_temp)) %>%
+  pivot_wider(names_from=c(season,name), values_from=value)
+
+chem <- read.csv(here::here("data","Annual_CTD_WaterChemistry_MeanMax_2000-2018.csv"))
+
+biomass_waterchem <- left_join(biomass_thin, temp, by=c("site","year")) %>%
+  filter(!is.na(summer_mean_temp)) %>%
+  left_join(chem,by=c("site"="station","year")) %>%
+  filter(site %in% chem$station) %>%
+  filter(year != 2019 & year != 2001)
+
+biomass_waterchem_complete <- biomass_waterchem %>%
+  filter(site %in% chem$station) %>%
+  filter(!is.na(mean_po4))
+colnames(biomass_waterchem_complete)
 ```
 <br>
 
 ```{r}
-write.csv(biomass_ext, here::here("data","biomass_prediction_data_waterchem_bysite.csv"),row.names=FALSE)
+write.csv(biomass_waterchem, here::here("data","biomass_prediction_data_waterchem_bysite.csv"),row.names=FALSE)
+write.csv(biomass_waterchem_complete, here::here("data","biomass_prediction_data_waterchem_bysite_complete.csv"),row.names=FALSE)
 ```
 <br>
 

@@ -382,14 +382,17 @@ I'm interested in total dissolved nitrogen and phosphorus (how nutrient-rich is 
 ```{r}
 water <- water_raw %>%
   dplyr::select(station, mon_day_yr, hh_mm, target_depth_m,
-               po4_umol_l,no2_no3_umol_l,urea_umol_l,ammonia_umol_l,
+               po4_umol_l,no2_no3_umol_l,poc_umol_l,pon_umol_l,urea_umol_l,ammonia_umol_l,
                total_chl_ug_l) %>%
   na_if("BDL") %>%
   filter(station %in% c("BR","AB","CR","MK","NR","QR")) %>%
-  mutate(station = recode(station, BR="BULL", AB ="ABUR", CR="CARP", MK="MOHK", NR="NAPL", QR="AQUE")) %>%
+  mutate(station = recode(station, BR="BULL", AB ="ABUR", CR="CARP", MK="MOHK", NR="NAPL", QR="AQUE"),
+         station=as.character(station)) %>%
+  filter(!is.na(target_depth_m)) %>%
   # get a daily average
   group_by(station, mon_day_yr,target_depth_m) %>%
   summarise(po4=mean(as.numeric(po4_umol_l), na.rm=TRUE), no2_no3=mean(as.numeric(no2_no3_umol_l), na.rm=TRUE),
+            poc=mean(as.numeric(poc_umol_l),na.rm=TRUE),pon=mean(as.numeric(pon_umol_l),na.rm=TRUE),
             urea=mean(as.numeric(urea_umol_l),na.rm=TRUE),ammonia=mean(as.numeric(ammonia_umol_l),na.rm=TRUE),
             tchl=mean(as.numeric(total_chl_ug_l),na.rm=TRUE)) %>%
   mutate(read_date=mdy(mon_day_yr), year=year(read_date))
@@ -404,25 +407,30 @@ ggplot(data=filter(water,year %in% c(2010,2011) & target_depth_m==1), aes(x=read
 ```
 <br>
 
-I think I'll take the annual mean and maximum of each nutrient concentration.
+I think I'll take the annual mean and maximum of each nutrient concentration. I'm going to focus on nutrients at the surface, 1-5m target depth, and I'll average across those depths.
 ```{r}
 water_means <- water %>%
-  pivot_longer(cols=c(po4,no2_no3,urea,ammonia,tchl), names_to="ctd.var", values_to="value") %>%
-  mutate(value=ifelse(is.nan(value),NA,value)) %>%
-  group_by(station,year,target_depth_m, ctd.var) %>%
+  filter(target_depth_m ==1) %>%
+  pivot_longer(cols=c(po4,no2_no3,pon,poc,urea,ammonia,tchl), names_to="ctd.var", values_to="value") %>%
+  mutate(value=as.numeric(value),
+         value=ifelse(is.nan(value),NA,value)) %>%
+  group_by(station,year,ctd.var) %>%
   summarise(mean=mean(as.numeric(value),na.rm=TRUE), max=0) %>%
   pivot_wider(names_from=ctd.var,values_from=c(mean,max)) 
 water_means <- water_means[,1:8]
 
 water_maxes <- water %>%
-   pivot_longer(cols=c(po4,no2_no3,urea,ammonia,tchl), names_to="ctd.var", values_to="value") %>%
-  mutate(value=ifelse(is.nan(value),NA,value)) %>%
+  filter(target_depth_m ==1) %>%
+   pivot_longer(cols=c(po4,no2_no3,pon,poc,urea,ammonia,tchl), names_to="ctd.var", values_to="value") %>%
+   mutate(value=as.numeric(value),
+         value=ifelse(is.nan(value),NA,value)) %>%
   filter(!is.na(value)) %>%
-  group_by(station,year,target_depth_m, ctd.var) %>%
+  group_by(station,year,ctd.var) %>%
   summarise(max=max(as.numeric(value),na.rm=TRUE),mean=0) %>%
   pivot_wider(names_from=ctd.var,values_from=c(max,mean))
 water_out <- water_maxes[,1:8] %>%
-  left_join(water_means, by=c("station","year","target_depth_m"))
+  left_join(water_means, by=c("station","year")) %>%
+  arrange(year)
 head(water_out)
 ```
 <br>

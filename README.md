@@ -28,39 +28,33 @@ Marine ecosystems are subject to natural variability in environmental conditions
 
 #### Research Questions
 
-Can we predict giant kelp size and abundance (response) from oceanographic conditions and herbivore abundance (predictor)?
+How does giant kelp size and abundance (response) vary according to oceanographic conditions and herbivore abundance (predictor)?
 
 How does fish / invertebrate community abundance and diversity (response) vary according to giant kelp size and abundance, and oceanographic conditions (predictor)?
 
 #### Variables
 
+All variables are aggregated to the site level; kelp data is also provided for individual replicates (transects) per site. 
+
 **Habitat**
 
-Kelp Abundance: Kelp fronds / m, by transect (replicate) and site
+Kelp Abundance: Kelp fronds per meter, by transect (replicate) and site.
 
-Kelp Size: Diameter of the kelp holdfast, by transect (replicate) and site. *Only measured for large observed Macrocystis individuals with holdfast > 20cm*
+Kelp Size: Diameter of the kelp holdfast, by transect (replicate) and site. *Only measured for large observed individuals with holdfast > 20cm*
 
-**Vertebrate / Invertebrate Community** 
-
-Fish Species Richness: Number of different fish species present, by transect (replicate) and site. Calculated as: Richness = number of species / sqrt(number of individuals)
-
-Fish Species Abundance: Number of individual fish species present, by transect (replicate) and site.
-
-Fish Species Diversity: Diversity of fish species present, by transect (replicate) and site. Calculated as: Shannon index = ∑ (pl) |ln pl|, Where (pl) is the proportion of the total number of individuals in the population that are in species “l”.
-
-Fish Taxon Diversity: Diversity of fish taxa (order) present, by transect (replicate) and site. 
-
-Invertebrate Species Richness
-
-Invertebrate Species Abundance
-
-Urchin Abundance: individuals / m^2, by transect (replicate) and site. Urchins are herbivores that eat kelp; they have played a large role in the decline of kelp forests. 
+Kelp Biomass: biomass is used as an index of abundance. Abundance was measured annually and converted to biomass (dry mass in grams) using published taxon-specific algorithms.
 
 **Water Temperature and Quality**
 
-Seasonal Bottom Temperature: mean of, and variation in, bottom temperature during the summer and winter seasons, by site. In Celsius. 
+Seasonal Bottom Temperature: mean and variance of bottom temperature during the summer and winter seasons (celsius). 
 
-Annual Water Chemistry: mean and maximum of nitrogen (umol/l), phosphorus (umol/l), urea (umol/l), ammonia (umol/l), total chlorophyll (umol/l) from CTD measurements at four sites. 
+Annual Water Chemistry: annual mean and maximum of nitrogen (umol/l), phosphorus (umol/l), particulate organic carbon or poc (umol/l), particulate organic nitrogen or pon (umol/l), ammonia (umol/l), and total chlorophyll (umol/l). 
+
+**Vertebrate / Invertebrate Community** 
+
+Urchin Abundance: number of individuals, by transect (replicate) and site. Urchins are herbivores that eat kelp; they have played a large role in the decline of kelp forests. 
+
+
 
 
 #### Potential Covariates 
@@ -74,6 +68,24 @@ Month: Month the survey was conducted.
 Observer: Who conducted the survey. 
 
 
+<br>
+<br>
+<br>
+<br>
+<br>
+
+---
+
+We also calculated the following indices for the fish and invertebrate communities, but ultimately did not use them in our linear models.
+
+
+Fish / Invertebrate Species Richness: The number of different fish species present, by transect (replicate) and site. Calculated as: Richness = number of species / sqrt(number of individuals)
+
+Fish / Invertebrate Species Abundance: Number of individual fish species present, by transect (replicate) and site.
+
+Fish / Invertebrate Species Diversity: Diversity of fish species present, by transect (replicate) and site. Calculated as: Shannon index = ∑ (pl) |ln pl|, Where (pl) is the proportion of the total number of individuals in the population that are in species “l”.
+
+Fish / Invertebrate Taxon Diversity: Diversity of the orders of fishes present, by transect (replicate) and site. The same indices were used as above.
 
 
 

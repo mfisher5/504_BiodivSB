@@ -51,8 +51,7 @@ head(q1dat_fish)
 For question 2, I need the kelp, oceanographic, and urchin abundance data.
 ```{r}
 urchins <- read.csv(here::here("data","Annual_Invert_RichnessAbundDiversity_2001-2018.csv")) %>% dplyr::select(year,month,site,transect, franciscanus.abundance,purpuratus.abundance,urchin.abundance)
-waterchem <- read.csv(here::here("data","Annual_CTD_WaterChemistry_MeanMax_2000-2018.csv")) %>%
-  filter(target_depth_m==1) %>% dplyr::select(-target_depth_m)
+waterchem <- read.csv(here::here("data","Annual_CTD_WaterChemistry_MeanMax_2000-2018.csv"))
 temp <- read.csv(here::here("data","Seasonal_Mean_Bottom_Temp_2002-2019.csv")) %>%
   dplyr::select(year,site,season,mean.temp,var.temp) %>%
   rename(mean_temp=mean.temp,var_temp=var.temp) %>%
@@ -136,8 +135,8 @@ corrplot(cor(dat2_urchins[,5:11],use="complete.obs"), type="upper")
 How does kelp size / abundance vary according to water chemistry?
 
 ```{r}
-kelp_chem_means <- filter(dat2_water, site %in% unique(waterchem$station)) %>% dplyr::select(5:8,14:18)
-kelp_chem_max <- filter(dat2_water, site %in% unique(waterchem$station)) %>% dplyr::select(5:13)
+kelp_chem_means <- filter(dat2_water, site %in% unique(waterchem$station)) %>% dplyr::select(5:8,15:19)
+kelp_chem_max <- filter(dat2_water, site %in% unique(waterchem$station)) %>% dplyr::select(5:14)
 corrplot(cor(kelp_chem_max,use="complete.obs"), type="upper")
 corrplot(cor(kelp_chem_means,use="complete.obs"), type="upper")
 ```
@@ -147,7 +146,7 @@ How does kelp size / abundance vary according to temperature?
 ```{r}
 kelp_temp <- filter(dat2_water, !is.na(summer_mean_temp))
 
-corrplot(cor(kelp_temp[,c(5:8,19:22)],use="complete.obs"), type="upper")
+corrplot(cor(kelp_temp[,c(5:8,21:24)],use="complete.obs"), type="upper")
 ```
 
 
