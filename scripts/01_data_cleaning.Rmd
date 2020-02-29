@@ -327,7 +327,7 @@ colnames(temp_raw); dim(temp_raw)
 
 Water chemistry measurements, ongoing since 2003.
 ```{r}
-water_raw <- read_delim(here::here("data","raw","LTER_monthly_bottledata_20190904.txt"),delim=";") %>%
+water_raw <- read.delim(here::here("data","raw","LTER_monthly_bottledata_20190904.txt"),sep=";") %>%
   clean_names() %>%
   remove_empty("rows") %>%
   na_if(-99999) %>%

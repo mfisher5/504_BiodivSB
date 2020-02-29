@@ -23,4 +23,4 @@ dat2_urchins <- left_join(kelp,urchins,by=c("year","month","site","transect"))
 dat2 <- left_join(dat2_urchins,filter(waterchem, target_depth_m==1),by=c("site"="station","year"))
 dat2_filtered <- filter(dat2, site %in% waterchem$station)
 
-write.csv(dat2_filtered,here::here("kelp_prediction_data.csv"), row.names=FALSE)
+write.csv(dat2_filtered,here::here("data","kelp_prediction_data.csv"), row.names=FALSE)
