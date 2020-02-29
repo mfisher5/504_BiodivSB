@@ -52,6 +52,6 @@ dat2_filtered <- dat2 %>%
 write.csv(dat2_filtered,here::here("data","kelp_prediction_data.csv"), row.names=FALSE)
 
 
-dat2_filtered2 <- filter(dat2_filtered, !is.na(mean_po4))
+dat2_filtered2 <- filter(dat2_filtered, !is.na(mean_po4) & !is.na(summer.mean.temp))
 write.csv(dat2_filtered2,here::here("data","kelp_prediction_data_complete.csv"), row.names=FALSE)
 

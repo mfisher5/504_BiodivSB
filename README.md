@@ -28,9 +28,9 @@ Marine ecosystems are subject to natural variability in environmental conditions
 
 #### Research Questions
 
-How are oceanographic conditions and herbivore abundance correlated with giant kelp size and abundance?
+Can we predict giant kelp size and abundance (response) from oceanographic conditions and herbivore abundance (predictor)?
 
-How does fish / invertebrate community abundance and diversity vary according to giant kelp size and abundance, and oceanographic conditions?
+How does fish / invertebrate community abundance and diversity (response) vary according to giant kelp size and abundance, and oceanographic conditions (predictor)?
 
 #### Variables
 

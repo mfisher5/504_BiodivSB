@@ -1,0 +1,139 @@
+---
+title: "Variable Selection Question 2"
+author: "Mary Fisher"
+date: "February 28, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(janitor)
+library(here)
+library(vegan)
+library(lubridate)
+library(corrplot)
+library(MASS)
+```
+<br>
+
+Read in data
+```{r}
+mydat <- read.csv(here::here("data","kelp_prediction_data_complete.csv")) %>%
+  clean_names() %>%
+  dplyr::select(-target_depth_m)
+head(mydat)
+```
+<br>
+
+
+### Predictors
+
+```{r}
+corrplot(cor(mydat[,9:14],use="complete.obs"), type="upper")
+corrplot(cor(mydat[,15:21], use="complete.obs"), type="upper")
+```
+<br>
+
+We have three variables that quantify urchin abundance - we'll just work with total abundance (`urchin_abundance`). Nitrogen and phosphorus are correlated, so we'll choose to look at nitrogen (`no2_no3`) because kelp integrate nitrogen to grow. 
+
+```{r}
+lmdat <- mydat %>%
+  dplyr::select(-purpuratus_abundance,-franciscanus_abundance, -max_po4, -mean_po4)
+```
+<br>
+
+
+### Model Selection
+
+#### Size of Giant Kelp
+```{r}
+n <- dim(lmdat)[1]
+fit.a <- lm(mapy_mean_size ~ urchin_abundance+site+
+              mean_no2_no3+mean_tchl+
+              summer_mean_temp+winter_mean_temp+
+              mean_no2_no3*summer_mean_temp+mean_tchl*summer_mean_temp +
+              site*summer_mean_temp,data=lmdat)
+scp <- list(lower = ~ 1,
+           upper = ~ urchin_abundance+site+
+              mean_no2_no3+mean_tchl+
+              summer_mean_temp+winter_mean_temp+
+              mean_no2_no3*summer_mean_temp+mean_tchl*summer_mean_temp+site*summer_mean_temp)
+
+fit.f <- step(fit.a, scope = scp, direction = "backward",  k = log(n))
+```
+<br>
+
+```{r}
+n <- dim(lmdat)[1]
+fit.e <- lm(mapy_mean_size ~ 1,data=lmdat)
+fit.a <- lm(mapy_mean_size ~ urchin_abundance+site+
+              mean_no2_no3+mean_tchl+
+              summer_mean_temp+winter_mean_temp+
+              mean_no2_no3*summer_mean_temp+mean_tchl*summer_mean_temp+
+              site*summer_mean_temp,data=lmdat)
+scp <- list(lower = ~ 1,
+           upper = ~ urchin_abundance+site+
+              mean_no2_no3+mean_tchl+
+              summer_mean_temp+winter_mean_temp+
+              mean_no2_no3*summer_mean_temp+mean_tchl*summer_mean_temp)
+
+fit.f <- step(fit.e, scope = scp, direction = "forward",  k = log(n))
+```
+<br>
+
+Final model: `mapy_mean_size ~ site + urchin_abundance + summer_mean_temp + mean_tchl + mean_no2_no3 + summer_mean_temp:mean_no2_no3`
+```{r}
+summary(fit.f)
+```
+<br>
+How does RSE / R squared compare to full model
+```{r}
+summary(fit.a)
+```
+<br>
+    
+    
+
+
+#### Abundance of Giant Kelp
+```{r}
+n <- dim(lmdat)[1]
+fit.abund.e <- lm(mapy_mean_abund ~ 1,data=lmdat)
+fit.abund.a <- lm(mapy_mean_abund ~ urchin_abundance+site+
+              mean_no2_no3+mean_tchl+
+              summer_mean_temp+winter_mean_temp+
+              mean_no2_no3*summer_mean_temp+mean_tchl*summer_mean_temp+
+              site*summer_mean_temp,data=lmdat)
+scp <- list(lower = ~ 1,
+           upper = ~ urchin_abundance+site+
+              mean_no2_no3+mean_tchl+
+              summer_mean_temp+winter_mean_temp+
+              mean_no2_no3*summer_mean_temp+mean_tchl*summer_mean_temp)
+
+fit.abund.f <- step(fit.abund.e, scope = scp, direction = "forward",  k = log(n))
+```
+
+```{r}
+fit.abund.f <- step(fit.abund.a, direction = "backward",  k = log(n))
+```
+<br>
+
+```{r}
+summary(fit.abund.f)
+summary(fit.abund.a)
+```
+
+
+
+
+
+
+
+
+
+
+
+
