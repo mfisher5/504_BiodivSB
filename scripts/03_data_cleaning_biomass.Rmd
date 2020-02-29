@@ -7,9 +7,12 @@ output:
     toc:
       toc_float: yes
 ---
+<br>
+<br>
 
+We found minimal correlation between giant kelp size and abundance, and the fish and invertebrate metrics of abundance / richness / diversity. This finding is contrary to existing scientific research and knowledge of kelp forest ecosystems, and may have been a function of they way that I cleaned and summarized the SBC LTER data sets. I'm going to look at the biomass data provided by the SBC LTER, which has been summarized at the transect (replicate / site) level. My hope is that scientists with the SBC LTER, who have a more extensive understanding of this data set, may have cleaned and summarized their survey data using a different - and more appropriate - approach than I did.
 
-Since there was minimal correlation between the fish / invertebrate metrics of abundance, richness and diversity, I'm going to look at the biomass data which the SBC LTER website has pre-calculated. 
+Biomass is a measure of the mass of a given biological community. It can be used in place of raw count data to represent abundance, diversity, and community composition. 
 
 <br>
 
@@ -40,17 +43,88 @@ colnames(biomass)
 ```
 <br>
 
-types of biomass calculations per group? I'll stick with dry mass for now.
+How much missing data is there across the different biomass calculations per group? 
 ```{r}
 biomass %>% group_by(group) %>% summarise(wm=sum(!is.na(wm_gm2))/length(wm_gm2),
                                           dry=sum(!is.na(dry_gm2))/length(dry_gm2),
+                                          sf=sum(!is.na(sfdm))/length(sfdm),
                                           ash=sum(!is.na(afdm))/length(afdm))
+```
+Wet mass and dry mass calculations have the least missing data. I'll stick with the dry mass calculations for now. 
+
+<br>
+
+## Transect-level Biomass
+
+### Process data
+
+Total and mean biomass per group / site / transect. 
+```{r}
+total_biomass <- biomass %>%
+  filter(group != "ALGAE") %>%
+  group_by(year,month,site,transect,group) %>%
+  summarise(total_biomass = sum(dry_gm2,na.rm=TRUE), mean_biomass=mean(dry_gm2, na.rm=TRUE)) %>%
+  pivot_longer(cols=c(total_biomass,mean_biomass)) %>%
+  pivot_wider(names_from=c(group,name))
+
+kelp_biomass <- biomass %>%
+  filter(scientific_name=="Macrocystis pyrifera") %>%
+  group_by(year,month,site,transect) %>%
+  summarise(kelp_total_biomass = sum(dry_gm2,na.rm=TRUE), kelp_mean_biomass=mean(dry_gm2, na.rm=TRUE))
+
+nonkelp_algae <- biomass %>%
+  filter(group == "ALGAE" & scientific_name != "Macrocystis pyrifera") %>%
+  group_by(year,month,site,transect) %>%
+  summarise(algae_total_biomass = sum(dry_gm2,na.rm=TRUE), algae_mean_biomass=mean(dry_gm2, na.rm=TRUE))
 ```
 <br>
 
-## Process data
+```{r}
+biomass_summary <- full_join(total_biomass,nonkelp_algae,by=c("year","month","site","transect")) %>%
+  full_join(kelp_biomass, by=c("year","month","site","transect")) %>%
+  clean_names()
+head(biomass_summary)
+```
+<br>
 
-Total and mean biomass per group / site / transect. 
+### Relationship between Variables
+
+```{r}
+corrplot(cor(biomass_summary[5:12], use="complete.obs"), type="upper")
+```
+<br>
+
+Fish & Kelp
+```{r}
+plot(biomass_summary[,c(5,6,11,12)])
+```
+<br>
+
+Invertebrates & Kelp
+```{r}
+plot(biomass_summary[,c(7,8,11,12)])
+```
+<br>
+
+Algae & Kelp
+```{r}
+plot(biomass_summary[,10:12])
+```
+<br>
+
+Fish & Invertebrates
+```{r}
+plot(biomass_summary[,5:8])
+```
+<br>
+
+
+## Site-level Biomass
+
+### Process Data
+
+What if we look at the site level, instead of at the level of transects? This would account for spatial heterogeneity in kelp, fish and invertebrate biomass across transects, assuming that it is the site-level biomass that actually matters. 
+
 ```{r}
 total_biomass <- biomass %>%
   filter(group != "ALGAE") %>%
@@ -58,8 +132,127 @@ total_biomass <- biomass %>%
   summarise(total_biomass = sum(dry_gm2,na.rm=TRUE), mean_biomass=mean(dry_gm2, na.rm=TRUE)) %>%
   pivot_longer(cols=c(total_biomass,mean_biomass)) %>%
   pivot_wider(names_from=c(group,name))
+
+kelp_biomass <- biomass %>%
+  filter(scientific_name=="Macrocystis pyrifera") %>%
+  group_by(year,month,site) %>%
+  summarise(kelp_total_biomass = sum(dry_gm2,na.rm=TRUE), kelp_mean_biomass=mean(dry_gm2, na.rm=TRUE))
+
+nonkelp_algae <- biomass %>%
+  filter(group == "ALGAE" & scientific_name != "Macrocystis pyrifera") %>%
+  group_by(year,month,site) %>%
+  summarise(algae_total_biomass = sum(dry_gm2,na.rm=TRUE), algae_mean_biomass=mean(dry_gm2, na.rm=TRUE))
+
+biomass_site_summary <- full_join(total_biomass,nonkelp_algae,by=c("year","month","site")) %>%
+  full_join(kelp_biomass, by=c("year","month","site")) %>%
+  clean_names()
+head(biomass_site_summary)
 ```
 <br>
+
+I'll also calculate the Simpson diversity index using biomass. 
+```{r}
+# fish
+div_fish_dat <- biomass %>%
+  filter(group=="FISH") %>%
+  group_by(year,month,site,taxon_order) %>%
+  summarise(total_biomass=sum(dry_gm2,na.rm=TRUE)) %>%
+  pivot_wider(names_from=taxon_order,values_from=total_biomass)
+div_fish <- biomass %>%
+  filter(group=="FISH") %>%
+  group_by(year,month,site,taxon_order) %>%
+  summarise(total_biomass=sum(dry_gm2,na.rm=TRUE)) %>%
+  pivot_wider(names_from=taxon_order,values_from=total_biomass) %>%
+  dplyr::select(year,month,site)
+div_fish[,"fish_diversity"] <- diversity(div_fish_dat[,c(-1,-2,-3)],index="simpson")
+
+# invertebrates
+div_invert_dat <- biomass %>%
+  filter(group=="INVERT") %>%
+  group_by(year,month,site,taxon_order) %>%
+  summarise(total_biomass=sum(dry_gm2,na.rm=TRUE)) %>%
+  pivot_wider(names_from=taxon_order,values_from=total_biomass)
+div_invert <- biomass %>%
+  filter(group=="INVERT") %>%
+  group_by(year,month,site,taxon_order) %>%
+  summarise(total_biomass=sum(dry_gm2,na.rm=TRUE)) %>%
+  pivot_wider(names_from=taxon_order,values_from=total_biomass) %>%
+  dplyr::select(year,month,site)
+div_invert[,"invert_diversity"] <- diversity(div_invert_dat[,c(-1,-2,-3)],index="simpson")
+
+# non-kelp algae
+div_algae_dat <- biomass %>%
+  filter(group=="ALGAE" & scientific_name != "Macrocystis pyrifera") %>%
+  group_by(year,month,site,taxon_order) %>%
+  summarise(total_biomass=sum(dry_gm2,na.rm=TRUE)) %>%
+  pivot_wider(names_from=taxon_order,values_from=total_biomass)
+div_algae <- biomass %>%
+  filter(group=="ALGAE" & scientific_name != "Macrocystis pyrifera") %>%
+  group_by(year,month,site,taxon_order) %>%
+  summarise(total_biomass=sum(dry_gm2,na.rm=TRUE)) %>%
+  pivot_wider(names_from=taxon_order,values_from=total_biomass) %>%
+  dplyr::select(year,month,site)
+div_algae[,"algae_diversity"] <- diversity(div_algae_dat[,c(-1,-2,-3)],index="simpson")
+
+biomass_div <- full_join(div_fish, div_invert, by=c("year","month","site")) %>%
+  full_join(div_algae,by=c("year","month","site"))
+```
+```{r}
+biomass_site_summary <- biomass_site_summary %>%
+  full_join(biomass_div, by=c("year","month","site"))
+head(biomass_site_summary)
+```
+<br>
+
+### Relationship between variables
+
+```{r}
+corrplot(cor(biomass_site_summary[4:11], use="complete.obs"), type="upper")
+```
+<br>
+
+There seem to be some relationships between invertebrate - algae biomass, and algae - kelp biomass. 
+
+```{r}
+corrplot(cor(biomass_site_summary[,c(10:14)], use="complete.obs"), type="upper")
+```
+
+### Write out
+
+First, all of the biomass metrics at the site-level.
+```{r}
+write.csv(biomass_site_summary, here::here("data","all_biomass_metrics_bysite.csv"), row.names=FALSE)
+```
+<br>
+
+Then, a thinned-out data set that contains only total biomass and shannon diversity
+```{r}
+biomass_thin <- dplyr::select(biomass_site_summary,
+                              year,month,site,
+                              fish_total_biomass,fish_diversity,invert_total_biomass,invert_diversity,algae_total_biomass,algae_diversity,
+                              kelp_total_biomass)
+
+write.csv(biomass_thin, here::here("data","biomass_prediction_data_bysite.csv"),row.names=FALSE)
+```
+<br>
+
+Finally, read in the water chemistry variables and include that in the data set.
+```{r}
+temp <- read.csv(here::here("data","Seasonal_Mean_Bottom_Temp_2002-2019.csv")) %>% dplyr::select(-sd.temp)
+  pivot_longer(cols=c(mean.temp,var.temp),names_to="measure",values_to="celsius") %>%
+  mutate(measure=recode(measure,"mean.temp"="mean_temp","var.temp"="var_temp"),
+         season=as.character(season))
+  pivot_wider(id_cols=c(site,year), names_from=c(season,measure),names_sep="_",values_from=celsius)
+biomass_thin <- left_join(biomass_thin, temp, by=c("site","year"))
+```
+<br>
+
+```{r}
+write.csv(biomass_ext, here::here("data","biomass_prediction_data_waterchem_bysite.csv"),row.names=FALSE)
+```
+<br>
+
+
 
 
 

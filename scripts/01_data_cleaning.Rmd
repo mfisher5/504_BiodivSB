@@ -361,7 +361,7 @@ Let's say that "summer" is May - Oct, and "winter" is Nov - April.
 ```{r}
 tempdat_means <- tempdat %>%
   mutate(season=ifelse(month > 5 & month < 10, "summer","winter")) %>%
-  group_by(site,serial,year,season) %>%
+  group_by(site,year,season) %>%
   summarise(mean.temp=mean(temp_c), var.temp=var(temp_c), sd.temp=sd(temp_c))
 ```
 <br>
