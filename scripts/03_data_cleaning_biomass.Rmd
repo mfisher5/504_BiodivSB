@@ -154,45 +154,46 @@ I'll also calculate the Simpson diversity index using biomass.
 ```{r}
 # fish
 div_fish_dat <- biomass %>%
-  filter(group=="FISH") %>%
+  filter(group=="FISH" & !is.na(taxon_order)) %>%
   group_by(year,month,site,taxon_order) %>%
   summarise(total_biomass=sum(dry_gm2,na.rm=TRUE)) %>%
   pivot_wider(names_from=taxon_order,values_from=total_biomass)
 div_fish <- biomass %>%
-  filter(group=="FISH") %>%
+  filter(group=="FISH" & !is.na(taxon_order)) %>%
   group_by(year,month,site,taxon_order) %>%
   summarise(total_biomass=sum(dry_gm2,na.rm=TRUE)) %>%
   pivot_wider(names_from=taxon_order,values_from=total_biomass) %>%
   dplyr::select(year,month,site)
-div_fish[,"fish_diversity"] <- diversity(div_fish_dat[,c(-1,-2,-3)],index="simpson")
+div_fish[,"fish_diversity"] <- diversity(div_fish_dat[,c(-1,-2,-3)],index="invsimpson")
 
 # invertebrates
 div_invert_dat <- biomass %>%
-  filter(group=="INVERT") %>%
+  filter(group=="INVERT" & !is.na(taxon_order)) %>%
   group_by(year,month,site,taxon_order) %>%
   summarise(total_biomass=sum(dry_gm2,na.rm=TRUE)) %>%
   pivot_wider(names_from=taxon_order,values_from=total_biomass)
 div_invert <- biomass %>%
-  filter(group=="INVERT") %>%
+  filter(group=="INVERT" & !is.na(taxon_order)) %>%
   group_by(year,month,site,taxon_order) %>%
   summarise(total_biomass=sum(dry_gm2,na.rm=TRUE)) %>%
   pivot_wider(names_from=taxon_order,values_from=total_biomass) %>%
   dplyr::select(year,month,site)
-div_invert[,"invert_diversity"] <- diversity(div_invert_dat[,c(-1,-2,-3)],index="simpson")
+div_invert[,"invert_diversity"] <- diversity(div_invert_dat[,c(-1,-2,-3)],index="invsimpson")
 
 # non-kelp algae
 div_algae_dat <- biomass %>%
-  filter(group=="ALGAE" & scientific_name != "Macrocystis pyrifera") %>%
+  filter(group=="ALGAE" & scientific_name != "Macrocystis pyrifera" & !is.na(taxon_order)) %>%
   group_by(year,month,site,taxon_order) %>%
   summarise(total_biomass=sum(dry_gm2,na.rm=TRUE)) %>%
   pivot_wider(names_from=taxon_order,values_from=total_biomass)
 div_algae <- biomass %>%
-  filter(group=="ALGAE" & scientific_name != "Macrocystis pyrifera") %>%
+  filter(group=="ALGAE" & scientific_name != "Macrocystis pyrifera" & !is.na(taxon_order)) %>%
   group_by(year,month,site,taxon_order) %>%
   summarise(total_biomass=sum(dry_gm2,na.rm=TRUE)) %>%
   pivot_wider(names_from=taxon_order,values_from=total_biomass) %>%
   dplyr::select(year,month,site)
-div_algae[,"algae_diversity"] <- diversity(div_algae_dat[,c(-1,-2,-3)],index="simpson")
+div_algae[,"algae_diversity"] <- diversity(div_algae_dat[,c(-1,-2,-3)],index="invsimpson")
+div_algae$algae_diversity[div_algae$algae_diversity==Inf] <- 0
 
 biomass_div <- full_join(div_fish, div_invert, by=c("year","month","site")) %>%
   full_join(div_algae,by=c("year","month","site"))
@@ -215,6 +216,11 @@ There seem to be some relationships between invertebrate - algae biomass, and al
 
 ```{r}
 corrplot(cor(biomass_site_summary[,c(10:14)], use="complete.obs"), type="upper")
+```
+
+```{r}
+plot(biomass_site_summary[4:11])
+plot(biomass_site_summary[,c(10:14)])
 ```
 
 ### Write out
