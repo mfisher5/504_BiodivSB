@@ -16,6 +16,8 @@ Research Questions:
 
 2. How are oceanographic conditions and herbivore abundance correlated with giant kelp size and abundance?
 
+This script was rerun on Mar 5, 2020, for observations at the site (instead of transect) level.
+
 <br>
 
 ```{r setup, include=FALSE}
@@ -40,7 +42,7 @@ For question 1, I need the kelp, fish, and invertebrate data.
 kelp <- read.csv(here::here("data","Annual_Kelp_MeanSize_MeanAbund_2001-2018.csv"))
 fish <- read.csv(here::here("data","Annual_Fish_RichnessAbundDiversity_2001-2018.csv")) %>% 
   filter(survey=="FISH") %>% dplyr::select(-date, -survey)
-invert <- read.csv(here::here("data","Annual_Invert_RichnessAbundDiversity_2001-2018.csv")) %>% dplyr::select(-survey.x,-survey.x.x,-survey.y,-survey.y.y,-date, -franciscanus.abundance,-purpuratus.abundance,-urchin.abundance)
+invert <- read.csv(here::here("data","Annual_Invert_RichnessAbundDiversity_2001-2018.csv")) %>% dplyr::select(-date, -franciscanus.abundance,-purpuratus.abundance,-urchin.abundance)
 
 # aggregate fish / invert by site
 fish <- fish %>%
@@ -49,16 +51,25 @@ fish <- fish %>%
   summarise(fish.mean=mean(value,na.rm=TRUE)) %>%
   pivot_wider(names_from=name,values_from=fish.mean)
 invert <- invert %>%
+  pivot_longer(cols=colnames(invert)[6:14]) %>%
+  group_by(year,month,site,survey,name) %>%
+  summarise(fish.mean=mean(value,na.rm=TRUE)) %>%
+  pivot_wider(names_from=c(survey,name),values_from=fish.mean)
 
-q1dat_fish <- left_join(kelp,fish, by=c("year","month","site","transect"))
-q1dat_invert <- left_join(kelp,invert, by=c("year","month","site","transect"))
-head(q1dat_fish)
+q1dat_fish <- left_join(kelp,fish, by=c("year","month","site"))
+q1dat_invert <- left_join(kelp,invert, by=c("year","month","site"))
+colnames(q1dat_fish)
 ```
 <br>
 
 For question 2, I need the kelp, oceanographic, and urchin abundance data.
 ```{r}
-urchins <- read.csv(here::here("data","Annual_Invert_RichnessAbundDiversity_2001-2018.csv")) %>% dplyr::select(year,month,site,transect, franciscanus.abundance,purpuratus.abundance,urchin.abundance)
+urchins <- read.csv(here::here("data","Annual_Invert_RichnessAbundDiversity_2001-2018.csv")) %>% 
+  dplyr::select(year,month,site,transect, franciscanus.abundance,purpuratus.abundance,urchin.abundance) %>%
+  pivot_longer(cols=c(franciscanus.abundance,purpuratus.abundance,urchin.abundance)) %>%
+  group_by(year,month,site,name) %>%
+  summarise(urchin.means=mean(value,na.rm=TRUE)) %>%
+  pivot_wider(names_from=name,values_from=urchin.means)
 waterchem <- read.csv(here::here("data","Annual_CTD_WaterChemistry_MeanMax_2000-2018.csv"))
 temp <- read.csv(here::here("data","Seasonal_Mean_Bottom_Temp_2002-2019.csv")) %>%
   dplyr::select(year,site,season,mean.temp,var.temp) %>%
@@ -66,7 +77,7 @@ temp <- read.csv(here::here("data","Seasonal_Mean_Bottom_Temp_2002-2019.csv")) %
   pivot_longer(cols=c(mean_temp,var_temp)) %>%
   pivot_wider(names_from=c(season,name), values_from=value)
 
-dat2_urchins <- left_join(kelp,urchins,by=c("year","month","site","transect"))
+dat2_urchins <- left_join(kelp,urchins,by=c("year","month","site"))
 dat2_water <- left_join(kelp,waterchem,by=c("site"="station","year")) %>%
   left_join(temp,by=c("site","year"))
 head(dat2_urchins); head(dat2_water)
@@ -82,17 +93,16 @@ head(dat2_urchins); head(dat2_water)
 How does fish community abundance and diversity vary according to giant kelp abundance?
 
 ```{r}
-abund_fish <- q1dat_fish %>% dplyr::select(-MAPY_mean_size,-MAPY_max_size)
-corrplot(cor(abund_fish[,5:15],use="pairwise.complete.obs"), type="upper")
+abund_fish <- q1dat_fish %>% dplyr::select(-mapy_mean_fronds,-mapy_max_fronds,-mapy_mean_hld,-mapy_max_hld)
+corrplot(cor(abund_fish[,4:14],use="pairwise.complete.obs"), type="upper")
 ```
 <br>
 
 How does fish community abundance and diversity vary according to giant kelp size?
 
 ```{r}
-size_fish <- q1dat_fish %>% dplyr::select(-MAPY_mean_abund,-MAPY_max_abund) %>%
-  filter(!is.na(MAPY_mean_size))
-corrplot(cor(size_fish[,5:15],use="complete.obs"), type="upper")
+size_fish <- q1dat_fish %>% dplyr::select(-mapy_mean_count,-mapy_mean_density)
+corrplot(cor(size_fish[,4:16],use="complete.obs"), type="upper")
 ```
 <br>
 
@@ -100,33 +110,27 @@ corrplot(cor(size_fish[,5:15],use="complete.obs"), type="upper")
 How does invertebrate community abundance and diversity vary according to giant kelp abundance?
 
 ```{r}
-abund_invert <- q1dat_invert %>% dplyr::select(-MAPY_mean_size,-MAPY_max_size, -survey)
-corrplot(cor(abund_invert[,5:15],use="complete.obs"), type="upper")
+abund_invert <- q1dat_invert %>% dplyr::select(-mapy_mean_fronds,-mapy_max_fronds,-mapy_mean_hld,-mapy_max_hld)
+corrplot(cor(abund_invert[,4:14],use="complete.obs"), type="upper")
+corrplot(cor(abund_invert[,c(4:5,15:22)],use="complete.obs"), type="upper")
 ```
 <br>
 
 How does invertebrate community abundance and diversity vary according to giant kelp size?
 
 ```{r}
-size_invert <- q1dat_invert %>% dplyr::select(-MAPY_mean_abund,-MAPY_max_abund,-survey) %>%
-  filter(!is.na(MAPY_mean_size))
-corrplot(cor(size_invert[,5:15],use="complete.obs"), type="upper")
+size_invert <- q1dat_invert %>% dplyr::select(-mapy_mean_density,-mapy_mean_count)
+corrplot(cor(abund_invert[,4:14],use="complete.obs"), type="upper")
+corrplot(cor(abund_invert[,c(4:5,15:22)],use="complete.obs"), type="upper")
 ```
 <br>
 
 ### Fish v. Invertebrate Communities
 ```{r warning=FALSE}
-invert_ext <- invert %>% dplyr::select(-survey) 
-new_colnames <- unlist(lapply(colnames(invert_ext), FUN=function(x){return(paste0("invert_",x))}))
-colnames(invert_ext)[5:13] <- new_colnames[5:13]
+invert_fish <- left_join(invert,fish,by=c("year","month","site"))
 
-fish_ext <- fish
-new_colnames <- unlist(lapply(colnames(fish_ext), FUN=function(x){return(paste0("fish_",x))}))
-colnames(fish_ext)[5:13] <- new_colnames[5:13]
-
-invert_fish <- left_join(invert_ext,fish_ext,by=c("year","month","site","transect"))
-
-corrplot(cor(invert_fish[5:13],invert_fish[14:22],use="complete.obs"), type="upper")
+corrplot(cor(invert_fish[,c(4:12)],invert_fish[,c(22:30)],use="complete.obs"), type="upper")
+corrplot(cor(invert_fish[,c(13:21)],invert_fish[,c(22:30)],use="complete.obs"), type="upper")
 ```
 
 
@@ -136,15 +140,15 @@ corrplot(cor(invert_fish[5:13],invert_fish[14:22],use="complete.obs"), type="upp
 How does kelp size / abundance vary according to sea urchin density?
 
 ```{r}
-corrplot(cor(dat2_urchins[,5:11],use="complete.obs"), type="upper")
+corrplot(cor(dat2_urchins[,4:12],use="complete.obs"), type="upper")
 ```
 <br>
 
 How does kelp size / abundance vary according to water chemistry?
 
 ```{r}
-kelp_chem_means <- filter(dat2_water, site %in% unique(waterchem$station)) %>% dplyr::select(5:8,15:19)
-kelp_chem_max <- filter(dat2_water, site %in% unique(waterchem$station)) %>% dplyr::select(5:14)
+kelp_chem_means <- filter(dat2_water, site %in% unique(waterchem$station)) %>% dplyr::select(4:9,16:21)
+kelp_chem_max <- filter(dat2_water, site %in% unique(waterchem$station)) %>% dplyr::select(4:15)
 corrplot(cor(kelp_chem_max,use="complete.obs"), type="upper")
 corrplot(cor(kelp_chem_means,use="complete.obs"), type="upper")
 ```
@@ -154,7 +158,7 @@ How does kelp size / abundance vary according to temperature?
 ```{r}
 kelp_temp <- filter(dat2_water, !is.na(summer_mean_temp))
 
-corrplot(cor(kelp_temp[,c(5:8,21:24)],use="complete.obs"), type="upper")
+corrplot(cor(kelp_temp[,c(4:9,22:25)],use="complete.obs"), type="upper")
 ```
 
 
