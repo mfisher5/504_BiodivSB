@@ -1,0 +1,183 @@
+---
+title: "Explore Variables"
+author: "Mary Fisher"
+date: "March 4, 2020"
+output: 
+  html_document:
+    toc: yes
+    toc_float: yes
+---
+
+Check out the distributions of all response and predictor variables, and any multicollinearity of predictor variables.
+
+
+
+```{r setup, include=FALSE}
+rm(list=ls())
+
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(janitor)
+library(here)
+library(vegan)
+library(lubridate)
+library(corrplot)
+library(MASS)
+```
+<br>
+
+Read in data
+```{r}
+mydat1 <- read.csv(here::here("data","kelp_prediction_data_complete.csv")) %>%
+  clean_names()
+colnames(mydat1)
+
+mydat2 <- read.csv(here::here("data","biomass_prediction_data_waterchem_bysite_complete.csv")) %>%
+  clean_names()
+head(mydat2)
+```
+<br>
+
+
+# Question 1: Kelp Growth & Size
+
+## Distributions
+
+### Response
+```{r}
+plotdat <- dplyr::select(mydat1, -year, -month, -transect) %>%
+  pivot_longer(cols=colnames(mydat1)[c(5:8)], names_to="variable")
+ggplot(data=plotdat, aes(x=value)) + 
+  geom_histogram() + 
+  facet_wrap(~variable,ncol=2,scales="free")
+```
+<br>
+
+### Predictor: Herbivory
+```{r}
+plotdat <- dplyr::select(mydat1, -year, -month, -transect) %>%
+  pivot_longer(cols=colnames(mydat1)[c(9:11)], names_to="variable")
+ggplot(data=plotdat, aes(x=value)) + 
+  geom_histogram() + 
+  facet_wrap(~variable,ncol=2,scales="free")
+```
+
+### Predictor: Water Chemistry
+```{r}
+plotdat <- dplyr::select(mydat1, -year, -month, -transect) %>%
+  pivot_longer(cols=colnames(mydat1)[c(12:17)], names_to="variable")
+ggplot(data=plotdat, aes(x=value)) + 
+  geom_histogram() + 
+  facet_wrap(~variable,ncol=2,scales="free")
+```
+```{r}
+plotdat <- dplyr::select(mydat1, -year, -month, -transect) %>%
+  pivot_longer(cols=colnames(mydat1)[c(18:23)], names_to="variable")
+ggplot(data=plotdat, aes(x=value)) + 
+  geom_histogram() + 
+  facet_wrap(~variable,ncol=2,scales="free")
+```
+<br>
+
+### Predictor: Water Temperature
+
+```{r}
+plotdat <- dplyr::select(mydat1, -year, -month, -transect) %>%
+  pivot_longer(cols=colnames(mydat1)[c(24:27)], names_to="variable")
+ggplot(data=plotdat, aes(x=value)) + 
+  geom_histogram() + 
+  facet_wrap(~variable,ncol=2,scales="free")
+```
+
+## Multicollinearity
+
+### Max values
+
+```{r}
+corrplot(cor(mydat1[,c(9:17,24:27)],use="complete.obs"), type="upper")
+```
+<br>
+
+### Mean values
+```{r}
+corrplot(cor(mydat1[,c(9:11,18:23,24:27)], use="complete.obs"), type="upper")
+```
+<br>
+
+
+# Question 2: Biodiversity
+
+## Distributions
+
+### Response
+```{r}
+plotdat <- dplyr::select(mydat2, -year, -month) %>%
+  pivot_longer(cols=colnames(mydat2)[c(4:9)], names_to="variable")
+ggplot(data=plotdat, aes(x=value)) + 
+  geom_histogram() + 
+  facet_wrap(~variable,ncol=3,scales="free")
+```
+<br>
+
+### Predictor: Water Temperature
+```{r}
+plotdat <- dplyr::select(mydat2, -year, -month) %>%
+  pivot_longer(cols=colnames(mydat2)[c(11:14)], names_to="variable")
+ggplot(data=plotdat, aes(x=value)) + 
+  geom_histogram() + 
+  facet_wrap(~variable,ncol=2,scales="free")
+```
+
+### Predictor: Water Chemistry
+```{r}
+plotdat <- dplyr::select(mydat2, -year, -month) %>%
+  pivot_longer(cols=colnames(mydat2)[c(15:20)], names_to="variable")
+ggplot(data=plotdat, aes(x=value)) + 
+  geom_histogram() + 
+  facet_wrap(~variable,ncol=2,scales="free")
+```
+```{r}
+plotdat <- dplyr::select(mydat2, -year, -month) %>%
+  pivot_longer(cols=colnames(mydat2)[c(21:26)], names_to="variable")
+ggplot(data=plotdat, aes(x=value)) + 
+  geom_histogram() + 
+  facet_wrap(~variable,ncol=2,scales="free")
+```
+<br>
+
+### Predictor: Kelp
+
+```{r}
+plotdat <- dplyr::select(mydat2, -year, -month) %>%
+  pivot_longer(cols=colnames(mydat2)[10], names_to="variable")
+ggplot(data=plotdat, aes(x=value)) + 
+  geom_histogram() + 
+  facet_wrap(~variable,ncol=2,scales="free")
+```
+<br>
+
+## Multicollinearity
+
+### Max values
+
+```{r}
+corrplot(cor(mydat2[,c(10:20)],use="complete.obs"), type="upper")
+```
+<br>
+
+### Mean values
+```{r}
+corrplot(cor(mydat2[,c(10:14,21:26)],use="complete.obs"), type="upper")
+```
+
+
+
+
+
+
+
+
+
+
+
+
