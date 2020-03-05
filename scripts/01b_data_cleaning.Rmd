@@ -1,0 +1,81 @@
+---
+title: "Pre-process data, by site"
+author: "Mary Fisher"
+date: "March 5, 2020"
+output: html_document
+---
+
+
+We're working with site-level data for question two, and for many of the predictor variables in question one. So for simplicity, we should have the giant kelp size / abundance summarized at the site level as well, instead of by individual transects.
+<br>
+<br>
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(janitor)
+library(here)
+library(vegan)
+library(lubridate)
+```
+
+
+
+### Raw Data
+Abundance and size of Giant Kelp (Macrocystis Pyrifera), ongoing since 2000. 
+```{r}
+kelp <- read.csv(here::here("data","raw","Annual_Kelp_All_Years_20181127.csv")) %>%
+  clean_names() %>%
+  remove_empty("rows") %>%
+  na_if(-99999)
+colnames(kelp); dim(kelp)
+```
+<br>
+
+
+### Process Data
+
+*LTER site Abstract:* These data describe the abundance of giant kelp, Macrocystis pyrifera, and are part of the SBCLTER kelp forest monitoring program. The study was initiated in 2000, in the Santa Barbara Channel, California, USA, and this dataset is updated once per year. The number and size (number of fronds and diameter of holdfasts) of plants were recorded along permanent transects at nine reef sites located along the mainland coast of the Santa Barbara Channel and at two sites on the north side Santa Cruz Island. These sites reflect several oceanographic regimes in the channel and vary in distance from sources of terrestrial runoff. The time period of data collection varied among the 11 kelp forest sites. Sampling at BULL, CARP, and NAPL began in 2000, sampling at the other 6 mainland sites (AHND, AQUE, IVEE, GOLB, ABUR, MOHK) began in 2001 (transects 3, 5, 6, 7, 8 at IVEE were added in 2011). 
+In this dataset, the density of giant kelp greater than 1 m tall is recorded in four contiguous 20 m x 1m swaths that run parallel and adjacent to permanent 40 m transects. Each transect has 2 sides. Kelp data is recorded on both sides of the transect tape (inshore and offshore) in two twenty meter long sections (0-20 meters and 21-40 meters) for each transect, resulting in four sections for each transect.
+There are four species codes in the kelp data set, representing different life stages: MAPY (adult giant kelp), MH (giant kelp holdfast), MJ (juvenile giant kelp), and MPS (stipe giant kelp). Two of these (MAPY, MPS) are present in the data set. 
+
+I'm going to grab the data for the mainland sites, for 2001 onward. I also just want the data for adult kelp (MAPY).
+```{r}
+kelp_thin <- dplyr::select(kelp, year, month, date,site,transect, quad,side,survey,sp_code,scientific_name,group,fronds,hld_diam,area) %>%
+  filter(year >= 2001) %>%
+  filter(!(site == "IVEE" & transect %in% c(3,5,6,7,8))) %>%
+  filter(sp_code=="MAPY")
+head(kelp_thin)
+```
+<br>
+
+Now I have to summarise the size / abundance of kelp at each site. The data was collected along 40m permanent transects. A transect has 2 sections ("quad"), 0-20m and 20-40m, and 2 sides ("side"), inshore and offshore. Combining the sides, each quad is therefore 20m x 2m and each transect is 40m x 2m (80m^2). For abundance, I want to calculate the density of kelp. For size, I can use both the mean and maximum fronds / plant and holdfast diameter at each site.
+
+```{r}
+kelp_abund <- kelp_thin %>%
+  group_by(year, month, site, transect) %>%
+  # density per transect
+  summarise(mapy_count=n(),mapy_density=mapy_count/80) %>%
+  # mean density per site
+  group_by(year,month,site) %>%
+  summarise(mapy_mean_density=mean(mapy_density,na.rm=TRUE), mapy_mean_count = mean(mapy_count,na.rm=TRUE))
+  
+  
+kelp_size <- kelp_thin %>%
+  group_by(year,month,site) %>%
+  summarise(mapy_mean_fronds=mean(fronds,na.rm=TRUE),mapy_max_fronds=max(fronds,na.rm=TRUE),
+            mapy_mean_hld=mean(hld_diam,na.rm=TRUE),mapy_max_hld=max(hld_diam,na.rm=TRUE)) %>%
+  na_if(NaN) %>%
+  na_if(-Inf)
+
+kelp_means <- full_join(kelp_abund,kelp_size,by=c("year", "month", "site"))
+
+head(kelp_means)
+```
+<br>
+
+Write out the new data
+```{r}
+write.csv(kelp_means,here::here("data","Annual_Kelp_MeanSize_MeanAbund_2001-2018.csv"),row.names=FALSE)
+```
