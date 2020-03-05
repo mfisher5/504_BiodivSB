@@ -16,6 +16,7 @@ Check out the distributions of all response and predictor variables, and any mul
 rm(list=ls())
 
 knitr::opts_chunk$set(echo = TRUE)
+
 library(tidyverse)
 library(janitor)
 library(here)
@@ -23,6 +24,8 @@ library(vegan)
 library(lubridate)
 library(corrplot)
 library(MASS)
+
+theme_set(theme_bw())
 ```
 <br>
 
@@ -34,7 +37,7 @@ colnames(mydat1)
 
 mydat2 <- read.csv(here::here("data","biomass_prediction_data_waterchem_bysite_complete.csv")) %>%
   clean_names()
-head(mydat2)
+colnames(mydat2)
 ```
 <br>
 
@@ -45,45 +48,94 @@ head(mydat2)
 
 ### Response
 ```{r}
-plotdat <- dplyr::select(mydat1, -year, -month, -transect) %>%
-  pivot_longer(cols=colnames(mydat1)[c(5:8)], names_to="variable")
+plotdat <- mydat1 %>%
+  pivot_longer(cols=colnames(mydat1)[c(4:7)], names_to="variable")
 ggplot(data=plotdat, aes(x=value)) + 
   geom_histogram() + 
   facet_wrap(~variable,ncol=2,scales="free")
 ```
 <br>
+
+Log of Response
+```{r}
+ggplot(data=plotdat, aes(x=log(value))) + 
+  geom_density() + 
+  facet_wrap(~variable,ncol=2,scales="free")
+```
+<br>
+
 
 ### Predictor: Herbivory
 ```{r}
-plotdat <- dplyr::select(mydat1, -year, -month, -transect) %>%
-  pivot_longer(cols=colnames(mydat1)[c(9:11)], names_to="variable")
-ggplot(data=plotdat, aes(x=value)) + 
-  geom_histogram() + 
-  facet_wrap(~variable,ncol=2,scales="free")
-```
-
-### Predictor: Water Chemistry
-```{r}
-plotdat <- dplyr::select(mydat1, -year, -month, -transect) %>%
-  pivot_longer(cols=colnames(mydat1)[c(12:17)], names_to="variable")
-ggplot(data=plotdat, aes(x=value)) + 
-  geom_histogram() + 
-  facet_wrap(~variable,ncol=2,scales="free")
-```
-```{r}
-plotdat <- dplyr::select(mydat1, -year, -month, -transect) %>%
-  pivot_longer(cols=colnames(mydat1)[c(18:23)], names_to="variable")
+plotdat <- mydat1 %>%
+  pivot_longer(cols=colnames(mydat1)[c(10:12)], names_to="variable")
 ggplot(data=plotdat, aes(x=value)) + 
   geom_histogram() + 
   facet_wrap(~variable,ncol=2,scales="free")
 ```
 <br>
+
+Log of Variable
+```{r}
+ggplot(data=plotdat, aes(x=log(value))) + 
+  geom_density() + 
+  facet_wrap(~variable,ncol=2,scales="free")
+```
+
+
+### Predictor: Water Chemistry
+
+Max Values
+```{r}
+plotdat <- mydat1 %>%
+  pivot_longer(cols=colnames(mydat1)[c(13:18)], names_to="variable")
+ggplot(data=plotdat, aes(x=value)) + 
+  geom_histogram() + 
+  facet_wrap(~variable,ncol=2,scales="free")
+```
+<br>
+
+Log /sqrt of max variables
+```{r}
+plotdat <- mydat1 %>%
+  pivot_longer(cols=c(max_pon,max_poc,max_tchl), names_to="variable")
+ggplot(data=plotdat, aes(x=log(value))) + 
+  geom_density() + 
+  facet_wrap(~variable,ncol=2,scales="free")
+plotdat <- mydat1 %>%
+  pivot_longer(cols=c(max_ammonia,max_no2_no3,max_po4), names_to="variable")
+ggplot(data=plotdat, aes(x=value^2)) + 
+  geom_density() + 
+  facet_wrap(~variable,ncol=2,scales="free")
+```
+<br>
+
+Mean values
+```{r}
+plotdat <- mydat1 %>%
+  pivot_longer(cols=colnames(mydat1)[c(19:24)], names_to="variable")
+ggplot(data=plotdat, aes(x=value)) + 
+  geom_histogram() + 
+  facet_wrap(~variable,ncol=2,scales="free")
+```
+<br>
+
+Log of mean variables
+```{r}
+plotdat <- mydat1 %>%
+  pivot_longer(cols=c(mean_pon,mean_poc,mean_tchl), names_to="variable")
+ggplot(data=plotdat, aes(x=log(value))) + 
+  geom_density() + 
+  facet_wrap(~variable,ncol=2,scales="free")
+```
+
+
 
 ### Predictor: Water Temperature
 
 ```{r}
-plotdat <- dplyr::select(mydat1, -year, -month, -transect) %>%
-  pivot_longer(cols=colnames(mydat1)[c(24:27)], names_to="variable")
+plotdat <- mydat1 %>%
+  pivot_longer(cols=colnames(mydat1)[c(25:28)], names_to="variable")
 ggplot(data=plotdat, aes(x=value)) + 
   geom_histogram() + 
   facet_wrap(~variable,ncol=2,scales="free")
@@ -94,13 +146,13 @@ ggplot(data=plotdat, aes(x=value)) +
 ### Max values
 
 ```{r}
-corrplot(cor(mydat1[,c(9:17,24:27)],use="complete.obs"), type="upper")
+corrplot(cor(mydat1[,c(10:18,25:28)],use="complete.obs"), type="upper")
 ```
 <br>
 
 ### Mean values
 ```{r}
-corrplot(cor(mydat1[,c(9:11,18:23,24:27)], use="complete.obs"), type="upper")
+corrplot(cor(mydat1[,c(10:12,19:28)], use="complete.obs"), type="upper")
 ```
 <br>
 
@@ -118,6 +170,13 @@ ggplot(data=plotdat, aes(x=value)) +
   facet_wrap(~variable,ncol=3,scales="free")
 ```
 <br>
+
+Log of Response
+```{r}
+ggplot(data=plotdat, aes(x=log(value))) + 
+  geom_density() + 
+  facet_wrap(~variable,ncol=3,scales="free")
+```
 
 ### Predictor: Water Temperature
 ```{r}
@@ -155,6 +214,13 @@ ggplot(data=plotdat, aes(x=value)) +
   facet_wrap(~variable,ncol=2,scales="free")
 ```
 <br>
+
+Cubed root of variable
+```{r}
+ggplot(data=plotdat, aes(x=value^(1/3))) + 
+  geom_density() + 
+  facet_wrap(~variable,ncol=2,scales="free")
+```
 
 ## Multicollinearity
 
