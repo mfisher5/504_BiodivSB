@@ -284,10 +284,10 @@ Urchin abundance
 ```{r}
 urchins <- invert %>%
   filter(taxon_family == "Strongylocentrotidae") %>%
-  dplyr::select(year, month, date,site,transect, quad,side,taxon_order, sp_code,scientific_name,group,size,count,area) %>%
+  dplyr::select(year, month, date,site,transect, survey,quad,side,taxon_order, sp_code,scientific_name,group,size,count,area) %>%
   filter(year >= 2001) %>%
   filter(!(site == "IVEE" & transect %in% c(3,5,6,7,8))) %>%
-  group_by(year,month,date,site,transect,scientific_name) %>%
+  group_by(year,month,date,site,transect,survey,scientific_name) %>%
   summarise(abund = sum(count)) %>%
   pivot_wider(names_from=scientific_name,values_from=abund) %>%
   rename(franciscanus.abundance=`Mesocentrotus franciscanus`,purpuratus.abundance=`Strongylocentrotus purpuratus`) %>%
@@ -297,11 +297,11 @@ urchins <- invert %>%
 
 Combine variables and write out. 
 ```{r}
-invert_out <- left_join(sp.richness,abundance, by=c("year","month","date","site","transect")) %>%
-  left_join(sp.diversity, by=c("year","month","date","site","transect")) %>%
-  left_join(order.richness, by=c("year","month","date","site","transect")) %>%
-  left_join(order.diversity, by=c("year","month","date","site","transect")) %>%
-  left_join(urchins, by=c("year","month","date","site","transect"))
+invert_out <- left_join(sp.richness,abundance, by=c("year","month","date","site","transect","survey")) %>%
+  left_join(sp.diversity, by=c("year","month","date","site","transect","survey")) %>%
+  left_join(order.richness, by=c("year","month","date","site","transect","survey")) %>%
+  left_join(order.diversity, by=c("year","month","date","site","transect","survey")) %>%
+  left_join(urchins, by=c("year","month","date","site","transect","survey"))
 
 write.csv(invert_out, here::here("data","Annual_Invert_RichnessAbundDiversity_2001-2018.csv"), row.names=FALSE)
 ```

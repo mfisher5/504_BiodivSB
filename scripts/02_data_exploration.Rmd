@@ -37,10 +37,18 @@ library(MASS)
 
 For question 1, I need the kelp, fish, and invertebrate data.
 ```{r}
-kelp <- read.csv(here::here("data","Annual_Kelp_MeanSize_MeanAbund_2001-2018.csv")) %>% dplyr::select(-scientific_name, -group)
+kelp <- read.csv(here::here("data","Annual_Kelp_MeanSize_MeanAbund_2001-2018.csv"))
 fish <- read.csv(here::here("data","Annual_Fish_RichnessAbundDiversity_2001-2018.csv")) %>% 
   filter(survey=="FISH") %>% dplyr::select(-date, -survey)
 invert <- read.csv(here::here("data","Annual_Invert_RichnessAbundDiversity_2001-2018.csv")) %>% dplyr::select(-survey.x,-survey.x.x,-survey.y,-survey.y.y,-date, -franciscanus.abundance,-purpuratus.abundance,-urchin.abundance)
+
+# aggregate fish / invert by site
+fish <- fish %>%
+  pivot_longer(cols=colnames(fish)[5:13]) %>%
+  group_by(year,month,site,name) %>%
+  summarise(fish.mean=mean(value,na.rm=TRUE)) %>%
+  pivot_wider(names_from=name,values_from=fish.mean)
+invert <- invert %>%
 
 q1dat_fish <- left_join(kelp,fish, by=c("year","month","site","transect"))
 q1dat_invert <- left_join(kelp,invert, by=c("year","month","site","transect"))
