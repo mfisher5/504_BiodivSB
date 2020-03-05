@@ -32,6 +32,8 @@ library(vegan)
 library(lubridate)
 library(corrplot)
 library(MASS)
+library(performance)
+
 ```
 <br>
 
@@ -87,8 +89,7 @@ Nitrogen and phosphorus are correlated, as are particulate organic carbon and ni
 
 ```{r}
 lmdat <- mydat %>%
-  dplyr::select(-purpuratus_abundance,-franciscanus_abundance, -max_po4, -mean_po4,
-                -mean_pon,-max_pon,-summer_mean_temp,-winter_mean_temp,-winter_var_temp, -summer_var_temp)
+  dplyr::select(-purpuratus_abundance,-franciscanus_abundance,-summer_var_temp,-winter_var_temp)
 corrplot(cor(lmdat[,c(9,14:18,20)],use="complete.obs"),type="upper")
 ```
 <br>
@@ -102,11 +103,13 @@ corrplot(cor(lmdat[,c(9,14:18,20)],use="complete.obs"),type="upper")
 ```{r}
 n <- dim(lmdat)[1]
 fit.a <- lm(mapy_mean_size ~ urchin_abundance+site+
-              mean_no2_no3+mean_ammonia+mean_tchl+
+              mean_no2_no3+mean_ammonia+mean_tchl+mean_pon+mean_poc+
+              summer_mean_temp+winter_mean_temp+
               prev_mean_size+site*prev_mean_size,data=lmdat)
 scp <- list(lower = ~ 1,
            upper = ~ urchin_abundance+site+
-              mean_no2_no3+mean_ammonia+mean_tchl+
+              mean_no2_no3+mean_ammonia+mean_tchl+mean_pon+mean_poc+
+             summer_mean_temp+winter_mean_temp+
               prev_mean_size+site*prev_mean_size)
 
 fit.f <- step(fit.a, scope = scp, direction = "backward",  k = log(n))
@@ -136,17 +139,9 @@ summary(fit.a)
 
 It looks like this model may violate the normality assumption, but there don't appear to be any outliers. 
 ```{r}
-par(mfrow=c(2,2))
-plot(fit.f)
+check_model(fit.f)
 ```
 <br>
-
-Here is the right tail on the residuals:
-```{r}
-hist(fit.f$residuals)
-```
-<br>
-
     
 
 
@@ -156,14 +151,17 @@ hist(fit.f$residuals)
 ```{r}
 n <- dim(lmdat)[1]
 fit.abund.e <- lm(mapy_mean_abund ~ 1,data=lmdat)
-fit.abund.a <- lm(mapy_mean_abund ~ urchin_abundance+site+
-              mean_no2_no3+mean_ammonia+mean_tchl+
-              prev_mean_abund+site*prev_mean_abund,data=lmdat)
+fit.abund.a <- lm(mapy_mean_abund ~  urchin_abundance+site+
+              mean_no2_no3+mean_ammonia+mean_tchl+mean_pon+mean_poc+
+              summer_mean_temp+winter_mean_temp+
+              prev_mean_size+site*prev_mean_size,data=lmdat)
 scp <- list(lower = ~ 1,
-           upper = ~ urchin_abundance+site+
-              mean_no2_no3+mean_ammonia+mean_tchl+
-              prev_mean_abund+site*prev_mean_abund)
-
+           upper = ~  urchin_abundance+site+
+              mean_no2_no3+mean_ammonia+mean_tchl+mean_pon+mean_poc+
+              summer_mean_temp+winter_mean_temp+
+              prev_mean_size+site*prev_mean_size,data=lmdat)
+```
+```{r eval=FALSE}
 fit.abund.f <- step(fit.abund.e, scope = scp, direction = "forward",  k = log(n))
 ```
 
@@ -180,16 +178,9 @@ summary(fit.abund.a)
 
 #### Model Diagnostics
 
-A bunch of things look weird here: the TA plot shows a fan shape, suggesting that our estimates are less precise at higher values. The model also violates the assumption of normality, with a right tail on the residuals. 
+The first issue with this model is that the nitrogen concentration and the winter temperature are moderately correlated. A few other things look weird here: the TA plot shows a fan shape, suggesting that our estimates are less precise at higher values. The model also violates the assumption of normality, with a right tail on the residuals. 
 ```{r}
-par(mfrow=c(2,2))
-plot(fit.abund.f)
-```
-<br>
-
-Here is the right tail on the residuals:
-```{r}
-hist(fit.abund.f$residuals)
+check_model(fit.abund.f)
 ```
 
 
