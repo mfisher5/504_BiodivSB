@@ -39,9 +39,9 @@ All variables are aggregated to the site level; kelp data is also provided for i
 
 **Habitat**
 
-Kelp Abundance: Kelp fronds per meter, by transect (replicate) and site.
+Kelp Abundance: Density of individual adult kelp, by site.
 
-Kelp Size: Diameter of the kelp holdfast, by transect (replicate) and site. *Only measured for large observed individuals with holdfast > 20cm*
+Kelp Size: Number of fronds per individual kelp and Diameter of the kelp holdfast, by site. *Kelp holdfast diameter only measured for large observed individuals with holdfast > 20cm*
 
 Kelp Biomass: Biomass is used as an alternative index to abundance. The SBC LTER team used annual abundance (above) and converted it to biomass (dry mass in grams) using published taxon-specific algorithms. We wanted to include this data, because it was compiled to the site level by researchers more familiar with the raw survey data set. As a result, there may have been more quality control conducted during the data processing, that makes this data set a more accurate description of actual site conditions.
 <br>

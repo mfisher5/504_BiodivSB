@@ -21,7 +21,7 @@ Our final combined biological / oceanographic data sets are for four mainland si
 
 The data frames include the following variables:
 
-1. Response: kelp mean and maximum abundance (`MAPY_mean_abund, MAPY_max_abund`) and kelp mean and maximum size (`MAPY_mean_size, MAPY_max_size`)
+1. Response: kelp mean and maximum abundance (`MAPY_mean_count, MAPY_mean_density`) and kelp mean and maximum size (`MAPY_mean_fronds, MAPY_max_fronds, MAPY_mean_hld, MAPY_max_hld`)
 
 2. Predictors - Urchins: red (`franciscanus.abundance`), purple (`purpuratus.abundance`), and total (`urchin.abundance`) sea urchin abundance.
 
@@ -50,7 +50,7 @@ The data frames include the following variables:
 
 ### Intermediate Data Sets
 
-`Annual_Kelp_MeanSize_MeanAbund_2001-2018.csv`: Mean and maximum abundance (fronds / meter, `abund`) and mean and maximum size (holdfast diameter, `hld_diam`) of giant kelp per transect, at each of 8 coastal sites, 2001-2018. Data frame includes the following variables: year (of sampling), month (of sampling), site, transect (replicate), obs_code (person gathering data), sp_code (MPS/MAPY), scientific_name (species name; Macrocystis pyrifera), group (algae)
+`Annual_Kelp_MeanSize_MeanAbund_2001-2018.csv`: Mean abundance (`count` and `density` / m^2) and mean and maximum size (holdfast diameter, `hld`, fronds, `fronds`) of giant kelp at each of 8 coastal sites, 2001-2018. Only for adult kelp (sp_code=MAPY). Data frame includes the following variables: year (of sampling), month (of sampling), site
 <br>
 
 `Annual_Fish_RichnessAbundDiversity_2001-2018.csv`: Fish and Cryptic Benthic Fish community composition, measured using (1) species richness (as a raw count of the number of species and Menhinick's index, `richness` / `menhinick.richness`), (2) species abundance (a raw count of individual fish), and (3) species diversity, using both Simpson's (`div.simpson`) and Shannon's (`div.shannon`) index. Data frame also includes the following variables: year (of sampling), month (of sampling), site, transect (replicate), survey (fish or cryptic fish).
