@@ -1,0 +1,185 @@
+---
+title: "Transformation of Response Variables"
+author: "Mary Fisher"
+date: "March 6, 2020"
+output: 
+  html_document:
+    toc: yes
+    toc_float: yes
+  
+---
+
+
+Check the distributions for each predictor variable, and use the box-cox function on a simple linear model to determine the suggested transformation.
+
+**NOTE:** most of the non-normal response variables follow a poisson distribution, or a zero-inflated poisson distribution. instead of applying a transformation to the response *and* predictors, we could also just use a GLM with a Poisson link function.
+<br>
+
+```{r setup, include=FALSE}
+rm(list=ls())
+
+knitr::opts_chunk$set(echo = FALSE)
+
+library(tidyverse)
+library(janitor)
+library(here)
+library(vegan)
+library(lubridate)
+library(corrplot)
+library(MASS)
+
+theme_set(theme_bw())
+```
+<br>
+
+Our model data:
+```{r echo=TRUE}
+mydat1 <- read.csv(here::here("data","kelp_prediction_data_complete.csv")) %>%
+  clean_names()
+colnames(mydat1)
+
+mydat2 <- read.csv(here::here("data","biomass_prediction_data_waterchem_bysite_complete.csv")) %>%
+  clean_names()
+colnames(mydat2)
+```
+<br>
+
+
+# Question 1: Kelp Growth & Size
+
+## Distributions
+
+### Response
+```{r}
+plotdat <- mydat1 %>%
+  pivot_longer(cols=colnames(mydat1)[c(4:9)], names_to="variable")
+ggplot(data=plotdat, aes(x=value)) + 
+  geom_histogram() + 
+  facet_wrap(~variable,ncol=2,scales="free")
+```
+<br>
+
+It looks like all but mean holdfast diameter (`mapy_mean_hld`) may not be normal. 
+```{r}
+mydat1 %>%
+  dplyr::select(mapy_mean_count,mapy_mean_density,mapy_max_fronds,mapy_mean_fronds,mapy_mean_hld,mapy_max_hld) %>%
+  map(function(x) shapiro.test(as.numeric(x)))
+```
+<br>
+
+Box-Cox suggested transformation:
+```{r}
+boxcox(lm(mapy_mean_density ~ urchin_abundance + site, data=mydat1),ylab="density log-L")
+boxcox(lm(mapy_mean_fronds ~ urchin_abundance + site, data=mydat1),ylab="mean size log-L")
+boxcox(lm(mapy_max_fronds ~ urchin_abundance + site, data=mydat1),ylab="max size log-L")
+boxcox(lm(mapy_max_hld ~ urchin_abundance + site, data=mydat1),ylab="max holdfast size log-L")
+```
+<br>
+
+Mean density and mean size should be log, whereas max size and is ~ 0.5 (square root)
+```{r}
+plotdat <- mydat1 %>%
+  dplyr::select(mapy_mean_fronds,mapy_mean_density) %>%
+  pivot_longer(cols=c(mapy_mean_fronds,mapy_mean_density))
+ggplot(data=plotdat, aes(x=log(value))) + 
+  geom_density() + 
+  facet_wrap(~name,scales="free")
+mydat1 %>%
+  dplyr::select(mapy_mean_density,mapy_mean_fronds) %>%
+  map(function(x) shapiro.test(as.numeric(log(x))))
+```
+<br>
+
+Both measures of max size are ~ 0.5 (square root)
+```{r}
+plotdat <- mydat1 %>%
+  dplyr::select(mapy_max_fronds,mapy_max_hld) %>%
+  pivot_longer(cols=c(mapy_max_fronds,mapy_max_hld))
+ggplot(data=plotdat, aes(x=sqrt(value))) + 
+  geom_density() + 
+  facet_wrap(~name,scales="free")
+mydat1 %>%
+  dplyr::select(mapy_max_fronds,mapy_max_hld) %>%
+  map(function(x) shapiro.test(as.numeric(sqrt(x))))
+```
+<br>
+
+
+# Question 2: Biodiversity
+
+## Distributions
+
+### Response
+```{r}
+plotdat <- dplyr::select(mydat2, -year, -month) %>%
+  pivot_longer(cols=colnames(mydat2)[c(4:9)], names_to="variable")
+ggplot(data=plotdat, aes(x=value)) + 
+  geom_histogram() + 
+  facet_wrap(~variable,ncol=3,scales="free")
+```
+<br>
+
+It looks like all of these may not be normal. 
+```{r}
+mydat2 %>%
+  dplyr::select(colnames(mydat2)[4:9]) %>%
+  map(function(x) shapiro.test(as.numeric(x)))
+```
+
+Since algae and fish biomass / diversity follow approximately the same distribution, I'm going to just apply box-cox to fish responses and we can extend them to invertebrates.
+
+Box-Cox suggested transformation:
+```{r}
+boxcox(lm(fish_diversity ~ kelp_total_biomass + site, data=mydat2),ylab="fish diversity log-L")
+boxcox(lm(fish_total_biomass ~ kelp_total_biomass + site, data=mydat2),ylab="fish biomass log-L")
+boxcox(lm(algae_diversity ~ kelp_total_biomass + site, data=mydat2),ylab="algae diversity log-L")
+boxcox(lm(algae_total_biomass ~ kelp_total_biomass + site, data=mydat2),ylab="algae biomass log-L")
+```
+
+For fish / invert biomass, a log transformation? Invert biomass is still not normal...
+```{r}
+plotdat <- mydat2 %>%
+  dplyr::select(fish_total_biomass,invert_total_biomass) %>%
+  pivot_longer(cols=c(fish_total_biomass,invert_total_biomass))
+ggplot(data=plotdat, aes(x=log(value))) + 
+  geom_density() + 
+  facet_wrap(~name,scales="free")
+mydat2 %>%
+  dplyr::select(fish_total_biomass,invert_total_biomass) %>%
+  map(function(x) shapiro.test(as.numeric(log(x))))
+```
+
+For fish / invert diversity, $\lambda$ ~ -1. both are still not normal
+```{r}
+plotdat <- mydat2 %>%
+  dplyr::select(fish_diversity,invert_diversity) %>%
+  pivot_longer(cols=c(fish_diversity,invert_diversity))
+ggplot(data=plotdat, aes(x=(1/value))) + 
+  geom_density() + 
+  facet_wrap(~name,scales="free")
+mydat2 %>%
+  dplyr::select(fish_diversity,invert_diversity) %>%
+  map(function(x) shapiro.test(as.numeric((1/x))))
+```
+
+
+For algae diversity and biomass, a square root transformation.
+```{r}
+plotdat <- mydat2 %>%
+  dplyr::select(algae_diversity,algae_total_biomass) %>%
+  pivot_longer(cols=c(algae_diversity,algae_total_biomass))
+ggplot(data=plotdat, aes(x=sqrt(value))) + 
+  geom_density() + 
+  facet_wrap(~name,scales="free")
+mydat2 %>%
+  dplyr::select(algae_diversity,algae_total_biomass) %>%
+  map(function(x) shapiro.test(as.numeric(sqrt(x))))
+```
+
+
+
+
+
+
+
+
