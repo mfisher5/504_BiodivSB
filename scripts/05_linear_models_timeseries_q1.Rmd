@@ -184,16 +184,45 @@ hist(lmdat.t$mean_tchl, main="")
 hist(lmdat.t$summer_mean_temp, main="")
 hist(lmdat.t$summer_var_temp, main="")
 ```
-
-
+<br>
+<br>
 
 
 ## Response Variables
 
-Mean holdfast density is normal.
+Mean holdfast diameter is normal (yay!).
 
-I'll need to 
+Mean density and mean number of fronds need to be log-transformed. I think that means that I can just run a generalized linear model using the `family=poisson(link='log')` argument. 
 
+But I do need to run the variable transformation for the previous mean density / fronds
+```{r echo=TRUE}
+lmdat.t <- lmdat.t %>%
+  mutate(prev_mean_density = log(prev_mean_density),
+         prev_mean_count = log(prev_mean_count),
+         prev_mean_fronds = log(prev_mean_fronds))
+```
+```{r}
+par(mfrow=c(1,3))
+hist(lmdat.t$prev_mean_density,main="")
+hist(lmdat.t$prev_mean_count,main="")
+hist(lmdat.t$prev_mean_fronds,main="")
+```
+<br>
+
+Maximum number of fronds and holdfast diameter need a square root transformation. For the response variable, this means that I can just run a generalized linear model using `family=Gamma(link='sqrt')`. 
+
+But I do need to transform the previous fronds and holdfast diameter.
+```{r echo=TRUE}
+lmdat.t <- lmdat.t %>%
+  mutate(prev_max_fronds = sqrt(prev_max_fronds),
+         prev_max_hld = sqrt(prev_max_hld))
+```
+```{r}
+par(mfrow=c(1,2))
+hist(lmdat.t$prev_max_fronds,main="")
+hist(lmdat.t$prev_max_hld,main="")
+```
+<br>
 
 
 
