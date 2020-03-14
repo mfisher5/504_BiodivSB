@@ -99,14 +99,14 @@ lmdat <- dplyr::select(mydat, -purpuratus_abundance,-franciscanus_abundance)
 ```
 <br>
 
-Then grab the total abundance data and split it into the two new variables. Does the square root transformation of the urchin abundance variable look normal now?
+Then grab the total abundance data and split it into the two new variables. Does the square root transformation of the urchin abundance variable look normal?
 ```{r echo=TRUE}
 lmdat <- lmdat %>%
   mutate(urchin_presence = ifelse(urchin_abundance > 0, 1, 0),
          urchin_abundance = ifelse(urchin_abundance==0,0,sqrt(urchin_abundance)))
 ```
 ```{r}
-ggplot(lmdat,aes(x=urchin_abundance)) +
+ggplot(data=filter(lmdat, urchin_abundance > 0),aes(x=urchin_abundance)) +
   geom_histogram() + theme_bw()
 
 shapiro.test(lmdat$urchin_abundance)
@@ -134,7 +134,7 @@ corrplot(cor(lmdat[,c(10:20)],use="complete.obs"), type="upper")
 ```
 <br>
 
-Summer and winter temperatures are correlated; since kelp is a cold-water species, we'll stick with summer temperature only. But then summer temperatures are also highly correlated with a variety of water chemistry variables, so let's just take out temperature entirely. 
+Summer and winter temperatures are correlated; since kelp is a cold-water species, we'll stick with summer temperature only. I'll rely on variable selection to remove either mean or variance in temperature, which are also correlated with each other.
 
 ```{r echo=TRUE}
 lmdat <- lmdat %>%
@@ -192,7 +192,7 @@ hist(lmdat.t$summer_var_temp, main="")
 
 Mean holdfast diameter is normal (yay!).
 
-Mean density and mean number of fronds need to be log-transformed. I think that means that I can just run a generalized linear model using the `family=poisson(link='log')` argument. 
+Mean density and mean number of fronds need to be log-transformed. I think that means that I can just run a generalized linear model using the `family=Gamma(link='log')` argument. 
 
 But I do need to run the variable transformation for the previous mean density / fronds
 ```{r echo=TRUE}
@@ -419,7 +419,7 @@ anova(glmfit.ff,glmfit.fb, test="F")
 
 Interactions: site by previous mean density
 
-Since there are some missing data in the kelp size categories, I'm going to select only the variables we are interested in at the moment
+Since there are some missing data in the kelp size categories, I'm going to select only the variables we are interested in at the moment and filter for missing data.
 
 ```{r}
 size_dat <- dplyr::select(lmdat.t, mapy_mean_fronds,site, urchin_presence, urchin_abundance, prev_mean_fronds, mean_ammonia, mean_no2_no3, mean_po4, mean_tchl, mean_pon, summer_mean_temp, summer_var_temp) %>%
@@ -428,6 +428,9 @@ size_dat <- dplyr::select(lmdat.t, mapy_mean_fronds,site, urchin_presence, urchi
 size_dat$prev_mean_fronds[which(size_dat$prev_mean_fronds == "-Inf")] <- 0
 size_dat$urchin_presence <- as.factor(size_dat$urchin_presence)
 size_dat$site <- as.factor(size_dat$site)
+
+
+colnames(size_dat)
 ```
 <br>
 
@@ -573,11 +576,11 @@ Maybe some non-constant variance, but overall it seems ok.
 
 ## Kelp Size (holdfasts)
 
-*Response:* log(`mapy_mean_hld`)
+*Response:* `mapy_mean_hld`
 
-Interactions: site by previous mean density
+Interactions: site by previous mean size
 
-Since there are some missing data in the kelp size categories, I'm going to select only the variables we are interested in at the moment
+Since there are some missing data in the kelp size categories, I'm going to select only the variables we are interested in at the moment and filter for no missing data.
 
 ```{r}
 size_dat <- dplyr::select(lmdat.t, mapy_mean_hld,site, urchin_presence, urchin_abundance, prev_mean_hld, mean_ammonia, mean_no2_no3, mean_po4, mean_tchl, mean_pon, summer_mean_temp, summer_var_temp) %>%
@@ -586,13 +589,15 @@ size_dat <- dplyr::select(lmdat.t, mapy_mean_hld,site, urchin_presence, urchin_a
 size_dat$prev_mean_hld[which(is.na(size_dat$prev_mean_hld))] <- 0
 size_dat$urchin_presence <- as.factor(size_dat$urchin_presence)
 size_dat$site <- as.factor(size_dat$site)
+
+colnames(size_dat)
 ```
 <br>
 
 
 ### LM
 
-Model Type: OLS, Log transformation of response
+Model Type: OLS
 
 #### Model Selection: BIC
 
@@ -600,7 +605,7 @@ Backward model selection
 
 ```{r}
 n <- dim(size_dat)[1]
-fit.a <- lm(log(mapy_mean_hld) ~ site + urchin_presence + urchin_abundance + 
+fit.a <- lm(mapy_mean_hld ~ site + urchin_presence + urchin_abundance + 
               prev_mean_hld + site:prev_mean_hld +
               mean_ammonia + mean_no2_no3 + mean_po4 + mean_tchl + mean_pon +
               summer_mean_temp + summer_var_temp, data=size_dat)
@@ -612,7 +617,7 @@ fit.fb <- step(fit.a, direction = "backward",  k = log(n))
 Forward Model Selection 
 
 ```{r}
-fit.e <- lm(log(mapy_mean_hld) ~ 1, data=size_dat)
+fit.e <- lm(mapy_mean_hld ~ 1, data=size_dat)
 
 scp <- list(lower = ~ 1,
            upper = ~ site + urchin_presence + urchin_abundance + 
@@ -624,9 +629,9 @@ fit.ff <- step(fit.e, scope=scp, direction = "forward",  k = log(n))
 ```
 <br>
 
-Forward and backward selection produces different models. Both of them are pretty terrible, but the R-squared is slightly better for the larger model
+Forward and backward selection produce the same models, only including the site variable. It's a pretty terrible model.
 ```{r}
-summary(fit.ff); summary(fit.fb)
+summary(fit.ff)
 ```
 <br>
 ```{r}
@@ -652,78 +657,18 @@ fit.ff <- step(fit.e, scope=scp, direction = "forward",  k = 2)
 ```
 <br>
 
-Forward and backward selection produces very different models, and also very different models from BIC-based selection.
+Forward and backward selection produces  different models, one with more than just the site variable.
 ```{r}
-summary(fit.fb); summary(fit.ff)
+summary(fit.fb); anova(fit.e,fit.ff,fit.fb,test="F")
 ```
 <br>
 
-The r-squared for the largest model is better than the other three we've looked at, although still below 0.50. There appear to be some issues with normality of residuals.
+The r-squared for the largest model is not much better than the models just looking at "site", but the normality of residuals is better!
 ```{r}
-plot(fit.ff)
-hist(fit.ff$residuals)
+plot(fit.fb)
+hist(fit.fb$residuals)
 ```
 <br>
-
-
-### GLM
-
-Model Type: GLM, `family=Gamma(link='log')`
-
-#### Model Selection: BIC
-
-Backward Selection
-
-```{r}
-glmfit.a <- glm(mapy_mean_hld ~ site + urchin_presence + urchin_abundance +
-              mean_ammonia + mean_no2_no3 + mean_po4 + mean_tchl + mean_pon +
-              summer_mean_temp + summer_var_temp +
-              prev_mean_hld + site:prev_mean_hld, data=size_dat, family=Gamma(link='log'))
-
-glmfit.f <- step(glmfit.a, direction = "backward", k=log(n))
-```
-<br>
-
-Forward Selection
-
-```{r}
-glmfit.e <- glm(mapy_mean_hld ~ 1, data=size_dat, family=Gamma(link='log'))
-glmfit.ff <- step(glmfit.e, scope=scp, direction = "forward",  k = log(n))
-```
-<br>
-
-Forward and backward selection chose the same model, with just site as a predictor. 
-```{r}
-summary(glmfit.f)
-anova(glmfit.e,glmfit.f, test="F")
-plot(glmfit.f); plot(glmfit.f, which=4)
-```
-There is non-constant variance of residuals according to the TA plot.
-
-<br>
-
-
-#### Model Selection: AIC
-
-Backward Selection
-
-```{r}
-glmfit.fb <- step(glmfit.a, direction = "backward", k=2)
-```
-<br>
-
-Forward Selection
-
-```{r}
-glmfit.ff <- step(glmfit.e, scope=scp, direction = "forward",  k = 2)
-```
-<br>
-
-Forward and backward selection chose different models, but match the AIC-based models from the OLS regression.
-<br>
-
-
-
 
 
 
