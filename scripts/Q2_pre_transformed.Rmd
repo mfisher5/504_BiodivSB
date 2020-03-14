@@ -1,0 +1,203 @@
+---
+title: "504project"
+author: "Tim Xi"
+date: "2020/2/28"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+```{r}
+library(tidyverse)
+library(janitor)
+library(vegan)
+library(lubridate)
+library(corrplot)
+library(MASS)
+library(here)
+data.kelp<-read.csv(file='kelp_prediction_data_complete.csv')
+data.waterchem<-read.csv(file='biomass_prediction_data_waterchem_complete.csv')
+mydat2 <- read.csv(file='biomass_prediction_data_waterchem_bysite_complete.csv')                       
+corrplot(cor(data.waterchem[,4:26],use="complete.obs"), type="upper")
+```
+```{r}
+mydat2$kelp_total_biomass<-mydat2$kelp_total_biomass^(1/3)
+mydat2$mean_pon<-log(mydat2$mean_pon)
+mydat2$mean_tchl<-log(mydat2$mean_tchl)
+mydat2$summer_mean_temp<-log(mydat2$summer_mean_temp)
+mydat2$winter_mean_temp<-log(log(mydat2$winter_mean_temp))
+```
+
+
+
+```{r}
+library(MASS)
+boxcox(lm(fish_diversity~kelp_total_biomass+site, data=mydat2),ylab="fish diversity log-L")
+boxcox(lm(fish_total_biomass ~kelp_total_biomass + site, data=mydat2),ylab="fish biomass log-L")
+boxcox(lm(invert_diversity ~ kelp_total_biomass + site+summer_mean_temp+winter_mean_temp+mean_ammonia, data=mydat2),ylab="fish diversity log-L")
+boxcox(lm(invert_total_biomass ~mean_tchl + summer_mean_temp + winter_mean_temp + 
+    site + winter_mean_temp:site + summer_mean_temp:site, data=mydat2),ylab="fish biomass log-L")
+boxcox(lm(algae_diversity ~ mean_ammonia+ winter_mean_temp, data=mydat2),ylab="algae diversity log-L")
+boxcox(lm(algae_total_biomass ~ mean_no2_no3  + site, data=mydat2),ylab="algae biomass log-L")
+```
+
+
+
+preidctor transformed
+
+
+#fish total biomass
+```{r}
+fit.initial<-lm(fish_total_biomass^(0.06)~mean_ammonia+mean_no2_no3+mean_po4+mean_poc+mean_pon+mean_tchl+summer_mean_temp+winter_mean_temp+kelp_total_biomass+site, data=mydat2)
+n<-dim(mydat2)[1]
+scp<-list(lower=~1,upper=~mean_ammonia+mean_no2_no3+mean_po4+mean_poc+mean_pon+mean_tchl+summer_mean_temp+winter_mean_temp+kelp_total_biomass+site+mean_poc:mean_pon:mean_tchl+mean_tchl:mean_pon+site:mean_tchl+mean_pon:site)
+fit.final<-step(fit.initial, scope=scp, direction="backward",k=log(n))
+
+```
+
+```{r}
+fit.null1<-lm(fish_total_biomass^(0.06)~1,data=mydat2)
+fit.final.forward<-step(fit.null1,scope=scp,direction="forward",k=log(n))
+summary(fit.final)
+summary(fit.final.forward)
+```
+
+
+```{r}
+par(mfrow=c(2,2))
+plot(fit.final)
+```
+
+GLM
+```{r}
+fit1.glm<-glm(fish_total_biomass^(0.06)~mean_ammonia+mean_no2_no3+mean_po4+mean_poc+mean_pon+mean_tchl+summer_mean_temp+winter_mean_temp+kelp_total_biomass+site, data=mydat2, family = Gamma)
+summary(fit1.glm)
+drop1(fit.final)
+```
+
+From above 
+the final model we get is fish_total_biomass^(0.06) ~ mean_poc + log(mean_pon) + log(mean_tchl) + site
+
+
+
+#diversity
+```{r}
+fit.initial2<-lm(fish_diversity^(-0.9)~mean_ammonia+mean_no2_no3+mean_po4+mean_poc+mean_pon+mean_tchl+summer_mean_temp+winter_mean_temp+kelp_total_biomass+site,data=mydat2)
+n<-dim(mydat2)[1]
+scp2<-list(lower=~1,upper=~mean_ammonia+mean_no2_no3+mean_po4+mean_poc+mean_pon+mean_tchl+summer_mean_temp+winter_mean_temp+kelp_total_biomass+site)
+fit.final2<-step(fit.initial2, scope=scp2, direction="backward", k=log(n))
+```
+
+```{r}
+fit.null2<-lm(fish_diversity^(-0.9)~1,data=mydat2)
+fit.final2.forward<-step(fit.null2,scope=scp2,direction="forward",k=log(n))
+summary(fit.final2)
+```
+
+
+```{r}
+summary(glm(fish_diversity~kelp_total_biomass+mean_ammonia+mean_no2_no3+mean_po4+mean_poc+mean_pon+mean_tchl+kelp_total_biomass:mean_poc+summer_mean_temp+winter_mean_temp+site, family="Gamma", data=mydat2))
+```
+The final model can be GLM with Gamma family 
+fish_diversity~kelp_total_biomass^(1/3)+mean_ammonia+kelp_total_biomass:mean_poc
+
+
+#invert_total_biomass
+```{r}
+fit.initial3<-lm(invert_total_biomass^(0.125)~mean_ammonia+mean_no2_no3+mean_po4+mean_poc+mean_pon+mean_tchl+summer_mean_temp+winter_mean_temp+kelp_total_biomass+site,data=mydat2)
+n<-dim(data.waterchem)[1]
+scp3<-list(lower=~1,upper=~mean_ammonia+mean_no2_no3+mean_po4+mean_poc+mean_pon+mean_tchl+summer_mean_temp+winter_mean_temp+kelp_total_biomass+site)
+fit.final3<-step(fit.initial3,scope=scp3,direction="backward",k=log(n))
+```
+
+```{r}
+fit.null3<-lm(invert_total_biomass^(0.125)~1,data=mydat2)
+fit.final3.forward<-step(fit.null3,scope=scp3,direction="forward",k=log(n))
+summary(fit.final3.forward)
+summary(fit.final3)
+```
+
+
+so we take fit.final3, which is invert_total_biomass^(0.125) ~ log(mean_tchl) + site
+
+```{r}
+par(mfrow=c(2,2))
+plot(fit.final3)
+summary(fit.final3)
+```
+
+#invert_diversity
+```{r}
+fit.initial4<-lm(invert_diversity^(-2)~mean_ammonia+mean_no2_no3+mean_po4+mean_poc+mean_pon+mean_tchl+summer_mean_temp+winter_mean_temp+kelp_total_biomass+site,data=mydat2)
+n<-dim(mydat2)[1]
+scp4<-list(lower=~1,upper=~mean_ammonia+mean_no2_no3+mean_po4+mean_poc+mean_pon+mean_tchl+summer_mean_temp+winter_mean_temp+kelp_total_biomass+site)
+fit.final4<-step(fit.initial4,scope=scp4,direction="backward",k=log(n))
+```
+
+```{r}
+fit.null4<-lm(invert_diversity^(-2)~1,data=mydat2)
+fit.final4.forward<-step(fit.null4,scope=scp4,direction="forward",k=log(n))
+```
+
+```{r}
+summary(fit.final4)
+summary(fit.final4.forward)
+```
+
+the final model is invert_diversity^(-2) ~ mean_ammonia + log(summer_mean_temp) + 
+    kelp_total_biomass^(1/3) + site
+
+```{r}
+par(mfrow=c(2,2))
+plot(fit.final4)
+```
+normality assumption seems to be satisfied but constant variance assumption seems to be violated.
+
+#algae_total_biomass
+```{r}
+fit.initial5<-lm(algae_total_biomass^(0.45)~mean_ammonia+mean_no2_no3+mean_po4+mean_poc+mean_pon+mean_tchl+summer_mean_temp+winter_mean_temp+kelp_total_biomass+site,data=mydat2)
+n<-dim(mydat2)[1]
+scp5<-list(lower=~1,upper=~mean_ammonia+mean_no2_no3+mean_po4+mean_poc+mean_pon+mean_tchl+summer_mean_temp+winter_mean_temp+kelp_total_biomass+site)
+fit.final5<-step(fit.initial5,scope=scp5,direction="backward",k=log(n))
+```
+
+```{r}
+fit.null5<-lm(algae_total_biomass^(0.45)~1,data=mydat2)
+fit.final5.forward<-step(fit.null5,scope=scp5,direction="forward",k=log(n))
+summary(fit.final5)
+```
+
+```{r}
+fit5.glm<-glm(algae_total_biomass^(0.45)~mean_ammonia+mean_no2_no3+mean_po4+mean_poc+mean_pon+mean_tchl+summer_mean_temp+winter_mean_temp+kelp_total_biomass+site, data=mydat2, family = Gamma)
+summary(fit5.glm)
+```
+
+we may take a GLM model with Gamma family
+algae_total_biomass^(0.45) ~ mean_no2_no3 +site
+
+#algae_diversity
+```{r}
+fit.initial6<-lm(algae_diversity^(0.25)~mean_ammonia+mean_no2_no3+mean_po4+mean_poc+mean_pon+mean_tchl+summer_mean_temp+winter_mean_temp+kelp_total_biomass+site+winter_mean_temp:mean_ammonia,data=mydat2)
+n<-dim(mydat2)[1]
+scp6<-list(lower=~1,upper=~mean_ammonia+mean_no2_no3+mean_po4+mean_poc+mean_pon+mean_tchl+summer_mean_temp+winter_mean_temp+kelp_total_biomass+site+winter_mean_temp:mean_ammonia)
+fit.final6<-step(fit.initial6,scope=scp6,direction="backward",k=log(n))
+
+```
+
+```{r}
+fit.null6<-lm(algae_diversity^(0.25)~1,data=mydat2)
+fit.final6.forward<-step(fit.null6,scope=scp6,direction="forward",k=log(n))
+summary(fit.final6)
+```
+
+```{r}
+summary(glm(algae_diversity~mean_ammonia+mean_no2_no3+mean_po4+mean_poc+mean_pon+mean_tchl+summer_mean_temp+winter_mean_temp+kelp_total_biomass+site+winter_mean_temp:mean_ammonia, family="Gamma", data=mydat2))
+```
+the final model is algae_diversity^(0.5) ~ mean_ammonia + log(log(winter_mean_temp))
+though it's not that good....
+
+```{r}
+par(mfrow=c(2,2))
+plot(fit.final6)
+```
+
