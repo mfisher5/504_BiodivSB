@@ -3,3 +3,4 @@ data/raw/mohawk_moored_pH_mko_20171219.csv
 data/raw/Annual_Quad*.csv
 data/raw/LTER_monthly*.txt
 data/raw/Annual_All_Species*.csv
+scripts/sst*

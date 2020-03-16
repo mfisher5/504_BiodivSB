@@ -9,25 +9,117 @@ Summarise sampling site characteristics: biological, oceanographic
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls())
+
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(maps)
+library(here)
+library(ncdf4)
+library(mapdata)
+library(maptools)
+library(cowplot)
+library(reshape2)
+
+adj_dir <- "SEFS_Courses/CSSS_504/504_BiodivSB"
 ```
 
-## R Markdown
+# Data
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+The sampling site locations
+```{r}
+locs <- read.csv(here::here("data","sampling_sites.csv"))
+locs
+```
+<br>
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+Function to grab SST
+```{r}
+my_get_sst_catalina <- function(year) {
+  # base url with YEAR meant to be replaced
+  turl <- "http://coastwatch.pfeg.noaa.gov/erddap/griddap/erdMWsstd8day.nc?sst[(YEAR-12-12T00:00:00Z)][(0.0)][(30.0):(35.0)][(238.0):(243.2)]"
+  
+  # the URL with YEAR replaced with a value
+  the_url <- str_replace(turl, "YEAR", year)
+  
+  # the filename to save the downloaded data in
+  the_file <- paste("sst_", year, ".nc", sep="")
+  
+  # if the file isn't here, download it
+  if(!file.exists(the_file)) {
+    download.file(the_url, the_file, mode='wb')
+  } else {
+    message(paste("Using existing file", the_file, collapse = " "))
+  }
+  
+  # now, grab stuff out of the netcdf file and return it in a list
+  # called ret
+  sstFile <- nc_open(the_file)
+  ret <- list()
+  ret$lats <- ncvar_get(sstFile, "latitude")
+  ret$lon <- ncvar_get(sstFile, "longitude") - 360 # we need them as negative values
+  ret$time <- ncvar_get(sstFile, "time")
+  ret$sst <- ncvar_get(sstFile, "sst")
+  ret$date <- paste("12-12-", year, sep = "")
+  nc_close(sstFile)
+  
+  ret
+}
 
-```{r cars}
-summary(cars)
+cata_sst_2014 <- my_get_sst_catalina("2014")
+```
+<br>
+
+
+# Map Sites
+
+Basemap and melted SST data frame
+```{r echo=TRUE}
+states_df <- map_data("state") %>%
+  filter(region == c("california"))
+
+melt_sst <- function(L) {
+  dimnames(L$sst) <- list(long = L$lon, lat = L$lats)
+  ret <- melt(L$sst, value.name = "sst")
+  cbind(date = L$date, ret, degF = ret$sst * 9/5 + 32)
+}
+
+msst <-  melt_sst(cata_sst_2014)
+head(msst)
+```
+<br>
+
+Map sampling sites
+```{r}
+mainmap <- ggplot() + 
+  geom_polygon(data=states_df, aes(x=long, y=lat, group=group), fill="grey50",linetype=1) +
+  geom_point(data=locs,aes(x=long,y=lat,col=site),size=4) +
+  scale_color_manual(values=rainbow(n=4), name="Sample Site") +
+  xlab("Longitude") + ylab("Latitude") +
+  theme_bw() +
+  coord_fixed(xlim=c(-121,-117),ylim=c(33,35)) +
+  theme(panel.background=element_rect(fill="lightblue"))
+mainmap
+```
+<br>
+
+```{r}
+inset <- ggplot() + 
+  geom_polygon(data=states_df, aes(x=long, y=lat, group=group), fill="grey50",linetype=1) +
+  geom_point(data=locs,aes(x=long,y=lat),size=4, col="black") +
+  theme_void() + theme(panel.background=element_rect(fill="white"))
+gg_inset_map2 = ggdraw() +
+  draw_plot(mainmap) +
+  draw_plot(inset, x = 0.17, y = 0.4, width = 0.15, height = 0.15)
+
+gg_inset_map2
+
+# png(here::here(adj_dir,"output","sample_site_map.png"),width=400,height=500)
+# gg_inset_map2
+# dev.off()
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
 
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
