@@ -219,7 +219,7 @@ Interactions: site by previous total biomass
 Model Type: OLS, Log transformation of response
 
 
-#### Backward model selection
+## Backward model selection
 
 ```{r}
 n <- dim(lmdat.t)[1]
@@ -232,7 +232,7 @@ fit.fb <- step(fit.a, direction = "backward",  k = log(n))
 ```
 <br>
 
-#### Forward Model Selection 
+## Forward Model Selection 
 
 ```{r}
 fit.e <- lm((kelp_total_biomass)^(1/3) ~ 1, data=lmdat.t)
@@ -248,15 +248,26 @@ fit.ff <- step(fit.e, scope=scp, direction = "forward",  k = log(n))
 <br>
 
 
-#### Model Diagnostics
+## Model Diagnostics
+
 Forward and backward selection produces slightly different models. The adjusted R-squared and MSE is better for the backwards stepwise model.
 ```{r}
 summary(fit.ff); summary(fit.fb)
 ```
+```{r}
+print(fit.fb %>% tidy())
+print(fit.fb %>% glance())
+```
+<br>
+```{r}
+anova(fit.e,fit.fb,test="F") %>% tidy()
+```
+<br>
 <br>
 
-Model Diagnostics
+Check Assumptions
 ```{r}
+par(mfrow=c(2,2))
 plot(fit.fb)
 plot(fit.fb,which=4)
 ```
@@ -268,7 +279,7 @@ check_model(fit.fb)
 <br>
 <br>
 
-## Random Forest
+# Random Forest
 
 Data without year:
 ```{r}
@@ -278,10 +289,10 @@ colnames(rfdat)
 ```
 <br>
 
-### Optimal Parameters
+## Optimize Parameters
 
 First, create the grid of parameter combinations
-```{r}
+```{r echo=TRUE}
 hyper_grid <- expand.grid(
   mtry       = seq(2, 8, by = 2),
   node_size  = seq(3, 7, by = 1),
@@ -291,8 +302,8 @@ hyper_grid <- expand.grid(
 ```
 <br>
 
-
-```{r}
+Then iterate through grid and find which combination of parameters provides the lowest residual MSE.
+```{r echo=TRUE}
 set.seed(100)
 
 for(i in 1:nrow(hyper_grid)) {
@@ -319,6 +330,9 @@ hyper_grid %>%
 <br>
 
 
+## Run Model 
+
+Rerun the optimal model a bunch of times to get a distribution of Residual MSE. The optimal model has `mtry`=4, `node_size` = 6, and `sample_size`= 0.70.
 ```{r}
 OOB_RMSE <- vector(mode = "numeric", length = 100)
 
@@ -341,7 +355,8 @@ hist(OOB_RMSE, breaks = 20, main="Residual MSE", xlab="",col="grey")
 ```
 <br>
 
-```{r}
+Now get the importance of the predictors in this optimal model
+```{r echo=TRUE}
 plotdat <- optimal_ranger$variable.importance %>% 
   tidy() %>%
   dplyr::arrange(desc(x)) %>%
@@ -370,12 +385,8 @@ ggplot(data=plotdat, aes(reorder(names, x), x)) +
 ```
 <br>
 
-Get training data
-```{r}
-```
-<br>
-
-```{r}
+Run the model to predict total kelp biomass. How does the prediction match observed values?
+```{r echo=TRUE}
 set.seed(100)
 n <- dim(rfdat)[1]
 trainrows <- sample(1:n, round(0.7*n))
@@ -393,7 +404,8 @@ final_model <- ranger(
     min.node.size = 6,
     importance      = 'impurity'
 )
-
+```
+```{r}
 rfdat.test <- rfdat.test %>%
   mutate(predictions = predict(final_model, rfdat.test)$predictions,
          diff.predict = (kelp_total_biomass-predictions)/kelp_total_biomass)
