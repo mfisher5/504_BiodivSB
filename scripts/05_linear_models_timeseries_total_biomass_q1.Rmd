@@ -281,7 +281,7 @@ check_model(fit.fb)
 
 # Random Forest
 
-Data without year:
+Remove the year from the data set, since I don't want the Random Forest to include this variable. I also transformed my response variable prior to the analysis.
 ```{r}
 rfdat <- dplyr::select(lmdat.t,-year) %>%
   mutate(kelp_total_biomass=(kelp_total_biomass)^(1/3))
@@ -291,7 +291,7 @@ colnames(rfdat)
 
 ## Optimize Parameters
 
-First, create the grid of parameter combinations
+First, create the grid of parameter combinations. 
 ```{r echo=TRUE}
 hyper_grid <- expand.grid(
   mtry       = seq(2, 8, by = 2),
@@ -302,7 +302,7 @@ hyper_grid <- expand.grid(
 ```
 <br>
 
-Then iterate through grid and find which combination of parameters provides the lowest residual MSE.
+Then iterate through grid and find which combination of parameters provides the lowest root mean squared error (RMSE). This will be the parameter combination at the top of the data frame, output below.
 ```{r echo=TRUE}
 set.seed(100)
 
@@ -332,7 +332,7 @@ hyper_grid %>%
 
 ## Run Model 
 
-Rerun the optimal model a bunch of times to get a distribution of Residual MSE. The optimal model has `mtry`=4, `node_size` = 6, and `sample_size`= 0.70.
+Rerun the optimal model (by manually entering the parameters identified above) a bunch of times to get a distribution of Residual MSE. The optimal model for this particular analysis has `mtry`=4, `node_size` = 6, and `sample_size`= 0.70.
 ```{r}
 OOB_RMSE <- vector(mode = "numeric", length = 100)
 
