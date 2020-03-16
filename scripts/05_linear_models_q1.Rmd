@@ -94,10 +94,26 @@ lmdat <- mydat %>%
 
 ### Size of Giant Kelp
 
+#### Boxcox
+
+```{r}
+library(car)
+dat <- lmdat %>% filter(mapy_mean_fronds > 0)
+fit1 <- lm(mapy_mean_fronds~.,data=dat, na.action = na.exclude)
+boxcox(fit1)
+summary(powerTransform(fit1))
+findlambda <- boxcox(mapy_mean_fronds~., data = dat,lambda = seq(-1,1,length = 20))
+findlambda$x[which.max(findlambda$y)]
+
+hist(lmdat$mapy_mean_fronds)
+lmdat$mapy_mean_fronds <- (lmdat$mapy_mean_fronds^0.5 -1)/0.5
+hist(lmdat$mapy_mean_fronds)
+```	
+
 #### Fit model
 ```{r}
 n <- dim(lmdat)[1]
-fit.a <- lm(mapy_mean_size ~ urchin_abundance+site+
+fit.a <- lm(mapy_mean_fronds ~ urchin_abundance+site+
               mean_no2_no3+mean_tchl+
               summer_mean_temp+winter_mean_temp+
               mean_no2_no3*summer_mean_temp+mean_tchl*summer_mean_temp +
@@ -109,13 +125,14 @@ scp <- list(lower = ~ 1,
               mean_no2_no3*summer_mean_temp+mean_tchl*summer_mean_temp+site*summer_mean_temp)
 
 fit.f <- step(fit.a, scope = scp, direction = "backward",  k = log(n))
+summary(fit.f)
 ```
 <br>
 
 ```{r}
 n <- dim(lmdat)[1]
-fit.e <- lm(mapy_mean_size ~ 1,data=lmdat)
-fit.a <- lm(mapy_mean_size ~ urchin_abundance+site+
+fit.e <- lm(mapy_mean_fronds ~ 1,data=lmdat)
+fit.a <- lm(mapy_mean_fronds ~ urchin_abundance+site+
               mean_no2_no3+mean_tchl+
               summer_mean_temp+winter_mean_temp+
               mean_no2_no3*summer_mean_temp+mean_tchl*summer_mean_temp+
@@ -126,7 +143,7 @@ scp <- list(lower = ~ 1,
               summer_mean_temp+winter_mean_temp+
               mean_no2_no3*summer_mean_temp+mean_tchl*summer_mean_temp)
 
-fit.f <- step(fit.e, scope = scp, direction = "forward",  k = log(n))
+fit.f <- step(fit.e, scope = scp, direction = "both",  k = log(n))
 ```
 <br>
 
@@ -161,11 +178,24 @@ hist(fit.f$residuals)
 
 ### Abundance of Giant Kelp
 
+#### Boxcox
+
+```{r}
+library(car)
+dat <- lmdat %>% filter(mapy_mean_density > 0)
+fit1 <- lm(mapy_mean_density~.,data=dat, na.action = na.exclude)
+boxcox(fit1)
+summary(powerTransform(fit1))
+findlambda <- boxcox(mapy_mean_density~., data = dat,lambda = seq(-1,1,length = 20))
+findlambda$x[which.max(findlambda$y)]
+
+```	
+
 #### Fit Model
 ```{r}
 n <- dim(lmdat)[1]
-fit.abund.e <- lm(mapy_mean_abund ~ 1,data=lmdat)
-fit.abund.a <- lm(mapy_mean_abund ~ urchin_abundance+site+
+fit.abund.e <- lm(mapy_mean_density ~ 1,data=lmdat)
+fit.abund.a <- lm(mapy_mean_density ~ urchin_abundance+site+
               mean_no2_no3+mean_tchl+
               summer_mean_temp+winter_mean_temp+
               mean_no2_no3*summer_mean_temp+mean_tchl*summer_mean_temp+
