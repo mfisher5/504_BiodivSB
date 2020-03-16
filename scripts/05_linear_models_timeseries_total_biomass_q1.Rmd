@@ -1,0 +1,422 @@
+---
+title: "Question 1: with t-1 variable"
+author: "Mary Fisher"
+date: "February 28; Updated March 13"
+output: 
+  html_document:
+    toc: yes
+    toc_float: yes
+---
+
+#### Research Question: Which oceanographic and herbivory conditions are important for predicting giant kelp size and abundance?
+
+**Response variables:** Giant kelp total biomass
+
+**Predictor variables: **
+
+1. Urchin abundance: Sea urchins are herbivores, and in large numbers (also called "herds") can decimate kelp forests. We have three measures of urchin abundance - red urchin abundance, purple urchin abundance, and urchin abundance across all species.
+
+2. Water chemistry: Like any algae / plant, kelp requires nutrients to grow. We have measurements for the following nutrients: nitrogen, ammonia, urea, and phosphorus. We also have chlorophyl concentrations, which is a general index of primary productivity.
+
+3. Water temperature: All species have a thermal range, or a range of temperatures, at which they grow best; the degree of variability in temperature can also have an impact on growth. With kelp forest loss from recent marine heatwaves and long-term warming, there has been much interest in whether kelp are impacted by an absolute temperature threshold, or by the degree of variability in temperature. We have mean summer and mean winter temperatures, and variation in summer and mean winter temperatures. 
+
+4. Giant kelp mean / max abundance, mean / max size at t-1: This data set is a time series, so the giant kelp response variable at a given site for year `t` should be dependent on giant kelp condition in year `t-1`.
+
+
+**Modeling approach:** OLS incorporating previous size / abundance.
+
+
+
+```{r setup, include=FALSE}
+rm(list=ls())
+
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(broom)
+library(ranger)
+library(janitor)
+library(here)
+library(vegan)
+library(lubridate)
+library(corrplot)
+library(MASS)
+library(performance)
+library(cowplot)
+
+```
+<br>
+
+# Prepare Data
+
+Read in data
+```{r echo=TRUE}
+mydat <- read.csv(here::here("data","kelp_prediction_data_complete.csv")) %>%
+  clean_names()
+mydat <- mydat[,-c(2,4:9)]
+head(mydat)
+```
+<br>
+
+Read in kelp total biomass
+```{r}
+biomass <- read.csv(here::here("data","all_biomass_metrics_bysite.csv")) %>%
+  dplyr::select(year,site,kelp_total_biomass) %>% distinct()
+mydat <- left_join(mydat,biomass,by=c("site","year"))
+
+colnames(mydat)
+```
+<br>
+
+Add in the giant kelp response variables for `t-1`.
+```{r}
+# need kelp info from 2001
+kelp_prev <- read.csv(here::here("data","all_biomass_metrics_bysite.csv")) %>%
+  clean_names() %>%
+  filter(site %in% mydat$site & year %in% c(2001,mydat$year)) %>%
+  dplyr::select(site,year,kelp_total_biomass) %>%
+  rename("prev_total_biomass" = kelp_total_biomass) %>%
+  mutate(year = year + 1)
+
+mydat <- left_join(mydat,kelp_prev,by=c("year","site"))
+
+message("\nThere are ", sum(is.na(mydat$prev_total_biomass)), " missing measurements for the previous year's kelp abundance.\n")
+
+colnames(mydat)
+```
+<br>
+
+## Predictor Variables 
+
+### Herbivory
+
+We have three variables that quantify urchin abundance - we'll just work with total abundance (`urchin_abundance`). 
+
+This variable is zero-inflated, a common problem with ecological count data. So I'm going to split it into two predictor variables - a categorical presence / absence variable, and then an abundance variable.
+
+First, get rid of the species-specific counts
+```{r echo=TRUE}
+lmdat <- dplyr::select(mydat, -purpuratus_abundance,-franciscanus_abundance)
+```
+<br>
+
+Then grab the total abundance data and split it into the two new variables. Does the square root transformation of the urchin abundance variable look normal?
+```{r echo=TRUE}
+lmdat <- lmdat %>%
+  mutate(urchin_presence = ifelse(urchin_abundance > 0, 1, 0),
+         urchin_abundance = ifelse(urchin_abundance==0,0,sqrt(urchin_abundance)))
+```
+```{r}
+ggplot(data=filter(lmdat, urchin_abundance > 0),aes(x=urchin_abundance)) +
+  geom_histogram() + theme_bw()
+
+shapiro.test(lmdat$urchin_abundance)
+```
+<br>
+
+### Water Chemistry
+
+The maximum values of water chemistry estimates were very difficult to force into a normal distribution. So I'm only going to work with the mean values.
+
+```{r echo=TRUE}
+lmdat <- lmdat %>%
+  dplyr::select(-max_ammonia,-max_no2_no3,-max_po4,-max_poc,-max_pon,-max_tchl)
+colnames(lmdat)
+```
+<br>
+
+
+### Multicolinearity
+
+```{r}
+corrplot(cor(lmdat[,c(3:13)],use="complete.obs"), type="upper")
+```
+<br>
+
+Summer and winter temperatures are correlated; since kelp is a cold-water species, we'll stick with summer temperature only. I'll rely on variable selection to remove either mean or variance in temperature, which are also correlated with each other.
+
+```{r echo=TRUE}
+lmdat <- lmdat %>%
+  dplyr::select(-winter_mean_temp,-winter_var_temp)
+```
+<br>
+
+```{r}
+corrplot(cor(lmdat[,c(3:11)],use="complete.obs"), type="upper")
+```
+
+Particulate organic carbon (`poc`) is highly correlated with particulate organic nitrogen and mean total chlorophyll. I'll remove particulate organic carbon.
+
+```{r echo=TRUE}
+lmdat <- lmdat %>%
+  dplyr::select(-mean_poc)
+```
+
+```{r}
+corrplot(cor(lmdat[,c(3:10,12,13)],use="complete.obs"), type="upper")
+```
+
+I think that for the remaining correlations, I'll see what happens in stepwise model selection. These are the final variables:
+```{r}
+colnames(lmdat)
+```
+<br>
+
+### Transform variables
+According to the script [04_explore_predictors](https://github.com/mfisher5/504_BiodivSB/tree/master/scripts), many of the predictor variables are not normally distributed. 
+
+```{r echo=TRUE}
+lmdat.t <- lmdat %>%
+  mutate(summer_var_temp = log(summer_var_temp),
+         mean_pon= log(mean_pon),
+         mean_tchl= log(mean_tchl))
+```
+<br>
+```{r}
+par(mfrow=c(2,2))
+hist(lmdat.t$urchin_abundance, main="")
+hist(lmdat.t$mean_ammonia, main="")
+hist(lmdat.t$mean_no2_no3, main="")
+hist(lmdat.t$mean_po4, main="")
+hist(lmdat.t$mean_pon, main="")
+hist(lmdat.t$mean_tchl, main="")
+hist(lmdat.t$summer_mean_temp, main="")
+hist(lmdat.t$summer_var_temp, main="")
+```
+<br>
+<br>
+
+
+## Response Variables
+
+Kelp total biomass needs to be raised to the (1/3)
+```{r echo=TRUE}
+lmdat.t <- lmdat.t %>%
+  mutate(prev_total_biomass=(prev_total_biomass)^(1/3))
+```
+```{r}
+par(mfrow=c(1,3))
+hist(lmdat.t$prev_total_biomass,main="")
+```
+<br>
+
+So now I have the following variables:
+```{r}
+colnames(lmdat.t)
+```
+<br>
+<br>
+<br>
+
+
+---
+
+# Model Selection (OLS)
+
+*Response:* (`kelp_total_biomass`) ^ (1/3)
+
+Interactions: site by previous total biomass
+
+Model Type: OLS, Log transformation of response
+
+
+#### Backward model selection
+
+```{r}
+n <- dim(lmdat.t)[1]
+fit.a <- lm((kelp_total_biomass)^(1/3) ~ site + urchin_presence + urchin_abundance + 
+              prev_total_biomass + site:prev_total_biomass +
+              mean_ammonia + mean_no2_no3 + mean_po4 + mean_tchl + mean_pon +
+              summer_mean_temp + summer_var_temp, data=lmdat.t)
+
+fit.fb <- step(fit.a, direction = "backward",  k = log(n))
+```
+<br>
+
+#### Forward Model Selection 
+
+```{r}
+fit.e <- lm((kelp_total_biomass)^(1/3) ~ 1, data=lmdat.t)
+
+scp <- list(lower = ~ 1,
+           upper = ~ site + urchin_presence + urchin_abundance + 
+              prev_total_biomass + site:prev_total_biomass +
+              mean_ammonia + mean_no2_no3 + mean_po4 + mean_tchl + mean_pon +
+              summer_mean_temp + summer_var_temp)
+
+fit.ff <- step(fit.e, scope=scp, direction = "forward",  k = log(n))
+```
+<br>
+
+
+#### Model Diagnostics
+Forward and backward selection produces slightly different models. The adjusted R-squared and MSE is better for the backwards stepwise model.
+```{r}
+summary(fit.ff); summary(fit.fb)
+```
+<br>
+
+Model Diagnostics
+```{r}
+plot(fit.fb)
+plot(fit.fb,which=4)
+```
+```{r}
+check_model(fit.fb)
+```
+<br>
+
+<br>
+<br>
+
+## Random Forest
+
+Data without year:
+```{r}
+rfdat <- dplyr::select(lmdat.t,-year) %>%
+  mutate(kelp_total_biomass=(kelp_total_biomass)^(1/3))
+colnames(rfdat)
+```
+<br>
+
+### Optimal Parameters
+
+First, create the grid of parameter combinations
+```{r}
+hyper_grid <- expand.grid(
+  mtry       = seq(2, 8, by = 2),
+  node_size  = seq(3, 7, by = 1),
+  sampe_size = c(.60, .65, .70, .80),
+  OOB_RMSE   = 0
+)
+```
+<br>
+
+
+```{r}
+set.seed(100)
+
+for(i in 1:nrow(hyper_grid)) {
+  
+  # train model
+  model <- ranger(
+    formula         = kelp_total_biomass ~ ., 
+    data            = rfdat, 
+    num.trees       = 500,
+    mtry            = hyper_grid$mtry[i],
+    min.node.size   = hyper_grid$node_size[i],
+    sample.fraction = hyper_grid$sampe_size[i],
+    seed            = 123
+  )
+  
+  # add OOB error to grid
+  hyper_grid$OOB_RMSE[i] <- sqrt(model$prediction.error)
+}
+
+hyper_grid %>% 
+  dplyr::arrange(OOB_RMSE) %>%
+  head(10)
+```
+<br>
+
+
+```{r}
+OOB_RMSE <- vector(mode = "numeric", length = 100)
+
+for(i in seq_along(OOB_RMSE)) {
+
+  optimal_ranger <- ranger(
+    formula         = kelp_total_biomass ~ ., 
+    data            = rfdat, 
+    num.trees       = 500,
+    mtry            = 4,
+    min.node.size   = 6,
+    sample.fraction = .7,
+    importance      = 'impurity'
+  )
+  
+  OOB_RMSE[i] <- sqrt(optimal_ranger$prediction.error)
+}
+
+hist(OOB_RMSE, breaks = 20, main="Residual MSE", xlab="",col="grey")
+```
+<br>
+
+```{r}
+plotdat <- optimal_ranger$variable.importance %>% 
+  tidy() %>%
+  dplyr::arrange(desc(x)) %>%
+  dplyr::top_n(25) %>%
+  mutate(names=as.factor(names),
+         names=recode(names, prev_total_biomass="Previous Total Biomass",
+                      urchin_abundance="Urchin Abundance",
+                      urchin_presence="Urchin Presence",
+                      site="Site",
+                      mean_pon="Particulate Organic Nitrogen",
+                      summer_mean_temp="Mean Summer Temp.",
+                      mean_po4="Phosphorus",
+                      mean_tchl="Total Chlorophyll",
+                      summer_var_temp="Summer Temp. Variance",
+                      mean_no2_no3="Nitrogen",
+                      mean_ammonia="Ammonia"))
+
+ggplot(data=plotdat, aes(reorder(names, x), x)) +
+  geom_col() +
+  coord_flip() +
+  ggtitle("Importance of Variables in Predicting Total Giant Kelp Biomass") +
+  ylab("Accumulated Reduction in MSE") +
+  xlab("Variable") +
+  theme_bw() + theme(panel.grid.major.x=element_blank(),
+                     panel.grid.minor.x=element_blank())
+```
+<br>
+
+Get training data
+```{r}
+```
+<br>
+
+```{r}
+set.seed(100)
+n <- dim(rfdat)[1]
+trainrows <- sample(1:n, round(0.7*n))
+testrows <- seq(1:n)[which(!(seq(1:n) %in% trainrows))]
+rfdat.train <- rfdat %>%
+  dplyr::slice(trainrows)
+rfdat.test <- rfdat %>%
+  dplyr::slice(testrows)
+
+final_model <- ranger(
+    formula   = kelp_total_biomass ~ ., 
+    data      = rfdat.train, 
+    num.trees = 500,
+    mtry      = 4,
+    min.node.size = 6,
+    importance      = 'impurity'
+)
+
+rfdat.test <- rfdat.test %>%
+  mutate(predictions = predict(final_model, rfdat.test)$predictions,
+         diff.predict = (kelp_total_biomass-predictions)/kelp_total_biomass)
+
+plot_values <- ggplot(rfdat.test,aes(x=kelp_total_biomass,y=predictions)) +
+  geom_point() +
+  geom_abline(slope=1,intercept=0) +
+  ylim(c(0,max(rfdat.test$kelp_total_biomass)))+
+  xlim(c(0,max(rfdat.test$kelp_total_biomass)))+
+  xlab("Observed") +
+  ylab("Predicted") +
+  theme_bw()
+plot_diff <- ggplot(rfdat.test,aes(x=diff.predict)) +
+  geom_histogram(binwidth=0.2) +
+  xlab("Percent Difference (Observed-Predicted)") +
+  ylab("Frequency") +
+  theme_bw()
+
+plot_grid(plot_values,plot_diff,rel_widths=c(1,0.8))
+```
+<br>
+
+
+
+
+
