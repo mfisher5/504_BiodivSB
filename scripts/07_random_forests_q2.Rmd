@@ -1,0 +1,533 @@
+---
+title: "Random Forests for Question 2"
+author: "Mary Fisher"
+date: "3/16/2020"
+output: 
+  html_document:
+    toc: yes
+    toc_float: yes
+---
+
+
+Research Question 2: What is the relationship between biodiversity and habitat conditions?
+
+The response variables for which we were able to find "good enough" correlations with our available predictors are: fish total biomass, invertebrate total biomass and diversity, algae total biomass.
+
+
+
+```{r setup, include=FALSE}
+rm(list=ls())
+
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(broom)
+library(ranger)
+library(janitor)
+library(here)
+library(vegan)
+library(lubridate)
+library(corrplot)
+library(MASS)
+library(performance)
+library(cowplot)
+
+```
+<br>
+
+# Prepare Data
+
+Read in data. grab only the columns of interest.
+```{r echo=TRUE}
+mydat <- read.csv(here::here("data","biomass_prediction_data_waterchem_bysite_complete.csv")) %>%
+  clean_names()
+mydat <- mydat[,-c(2,15:20)]
+colnames(mydat)
+```
+<br>
+
+## Multicollinearity
+
+I know from script `05_linear_models_timeseries_total_biomass` that summer and winter temperatures are correlated; since kelp is a cold-water species, we'll stick with summer temperature only. I'll rely on variable selection to remove either mean or variance in temperature, which are also correlated with each other. Particulate organic carbon (`poc`) is highly correlated with particulate organic nitrogen and mean total chlorophyll. I'll remove particulate organic carbon.
+```{r echo=TRUE}
+mydat <- mydat %>%
+  dplyr::select(-winter_mean_temp,-winter_var_temp,-mean_poc)
+colnames(mydat)
+```
+<br>
+
+```{r}
+corrplot(cor(mydat[,c(9:16)],use="complete.obs"), type="upper")
+```
+<br>
+
+## Transform variables
+According to the script [04_explore_predictors](https://github.com/mfisher5/504_BiodivSB/tree/master/scripts), many of the predictor variables are not normally distributed. 
+
+```{r echo=TRUE}
+mydat.t <- mydat %>%
+  mutate(summer_var_temp = log(summer_var_temp),
+         mean_pon= log(mean_pon),
+         mean_tchl= log(mean_tchl),
+         kelp_total_biomass=(kelp_total_biomass)^(1/3),
+         invert_total_biomass=(invert_total_biomass)^(0.125),
+         invert_diversity=(invert_diversity)^(-2),
+         fish_total_biomass=(fish_total_biomass)^0.06)
+colnames(mydat.t)
+```
+<br>
+<br>
+<br>
+
+# Random Forests
+
+## Invertebrate Biomass
+```{r echo=TRUE}
+rfdat <- mydat.t %>%
+  dplyr::select(c(2,5,9:16))
+colnames(rfdat)
+```
+
+
+### Optimize Parameters
+
+First, create the grid of parameter combinations. 
+```{r echo=TRUE}
+hyper_grid <- expand.grid(
+  mtry       = seq(2, 8, by = 2),
+  node_size  = seq(3, 7, by = 1),
+  sampe_size = c(.60, .65, .70, .80),
+  OOB_RMSE   = 0
+)
+```
+<br>
+
+Then iterate through grid and find which combination of parameters provides the lowest root mean squared error (RMSE). This will be the parameter combination at the top of the data frame, output below.
+```{r echo=TRUE}
+set.seed(100)
+
+for(i in 1:nrow(hyper_grid)) {
+  
+  # train model
+  model <- ranger(
+    formula         = invert_total_biomass ~ ., 
+    data            = rfdat, 
+    num.trees       = 500,
+    mtry            = hyper_grid$mtry[i],
+    min.node.size   = hyper_grid$node_size[i],
+    sample.fraction = hyper_grid$sampe_size[i],
+    seed            = 123
+  )
+  
+  # add OOB error to grid
+  hyper_grid$OOB_RMSE[i] <- sqrt(model$prediction.error)
+}
+
+hyper_grid %>% 
+  dplyr::arrange(OOB_RMSE) %>%
+  head(10)
+```
+<br>
+
+
+### Run Model 
+
+Rerun the optimal model (by manually entering the parameters identified above) a bunch of times to get a distribution of Residual MSE. 
+```{r echo=TRUE}
+OOB_RMSE <- vector(mode = "numeric", length = 100)
+
+for(i in seq_along(OOB_RMSE)) {
+
+  optimal_ranger <- ranger(
+    formula         = invert_total_biomass ~ ., 
+    data            = rfdat, 
+    num.trees       = 500,
+    mtry            = 8,
+    min.node.size   = 3,
+    sample.fraction = .8,
+    importance      = 'impurity'
+  )
+  
+  OOB_RMSE[i] <- sqrt(optimal_ranger$prediction.error)
+}
+
+hist(OOB_RMSE, breaks = 20, main="Root MSE", xlab="",col="grey")
+```
+<br>
+
+Now get the importance of the predictors in this optimal model
+```{r}
+plotdat <- optimal_ranger$variable.importance %>% 
+  tidy() %>%
+  dplyr::arrange(desc(x)) %>%
+  dplyr::top_n(25) %>%
+  mutate(names=as.factor(names),
+         names=recode(names, kelp_total_biomass="Kelp Total Biomass",
+                      site="Site",
+                      mean_pon="Particulate Organic Nitrogen",
+                      summer_mean_temp="Mean Summer Temp.",
+                      mean_po4="Phosphorus",
+                      mean_tchl="Total Chlorophyll",
+                      summer_var_temp="Summer Temp. Variance",
+                      mean_no2_no3="Nitrogen",
+                      mean_ammonia="Ammonia"))
+
+ggplot(data=plotdat, aes(reorder(names, x), x)) +
+  geom_col() +
+  coord_flip() +
+  ggtitle("Importance of Variables in Predicting Total Giant Kelp Biomass") +
+  ylab("Accumulated Reduction in MSE") +
+  xlab("Variable") +
+  theme_bw() + theme(panel.grid.major.x=element_blank(),
+                     panel.grid.minor.x=element_blank())
+```
+<br>
+
+Run the model to predict total kelp biomass. How does the prediction match observed values?
+```{r echo=TRUE}
+set.seed(100)
+n <- dim(rfdat)[1]
+trainrows <- sample(1:n, round(0.7*n))
+testrows <- seq(1:n)[which(!(seq(1:n) %in% trainrows))]
+rfdat.train <- rfdat %>%
+  dplyr::slice(trainrows)
+rfdat.test <- rfdat %>%
+  dplyr::slice(testrows)
+
+final_model <- ranger(
+    formula   = invert_total_biomass ~ ., 
+    data      = rfdat.train, 
+    num.trees = 500,
+    mtry      = 4,
+    min.node.size = 6,
+    importance      = 'impurity'
+)
+```
+```{r}
+rfdat.test <- rfdat.test %>%
+  mutate(predictions = predict(final_model, rfdat.test)$predictions,
+         diff.predict = (invert_total_biomass-predictions)/invert_total_biomass)
+
+plot_values <- ggplot(rfdat.test,aes(x=invert_total_biomass,y=predictions)) +
+  geom_point() +
+  geom_abline(slope=1,intercept=0) +
+  ylim(c(0,max(rfdat.test$invert_total_biomass)))+
+  xlim(c(0,max(rfdat.test$invert_total_biomass)))+
+  xlab("Observed") +
+  ylab("Predicted") +
+  theme_bw()
+plot_diff <- ggplot(rfdat.test,aes(x=diff.predict)) +
+  geom_histogram(binwidth=0.2) +
+  xlab("Percent Difference (Observed-Predicted)") +
+  ylab("Frequency") +
+  theme_bw()
+
+plot_grid(plot_values,plot_diff,rel_widths=c(1,0.8))
+```
+<br>
+
+
+
+## Invertebrate Diversity
+```{r echo=TRUE}
+rfdat <- mydat.t %>%
+  dplyr::select(c(2,6,9:16))
+colnames(rfdat)
+```
+
+
+### Optimize Parameters
+
+First, create the grid of parameter combinations. 
+```{r echo=TRUE}
+hyper_grid <- expand.grid(
+  mtry       = seq(2, 8, by = 2),
+  node_size  = seq(3, 7, by = 1),
+  sampe_size = c(.60, .65, .70, .80),
+  OOB_RMSE   = 0
+)
+```
+<br>
+
+Then iterate through grid and find which combination of parameters provides the lowest root mean squared error (RMSE). This will be the parameter combination at the top of the data frame, output below.
+```{r echo=TRUE}
+set.seed(100)
+
+for(i in 1:nrow(hyper_grid)) {
+  
+  # train model
+  model <- ranger(
+    formula         = invert_diversity ~ ., 
+    data            = rfdat, 
+    num.trees       = 500,
+    mtry            = hyper_grid$mtry[i],
+    min.node.size   = hyper_grid$node_size[i],
+    sample.fraction = hyper_grid$sampe_size[i],
+    seed            = 123
+  )
+  
+  # add OOB error to grid
+  hyper_grid$OOB_RMSE[i] <- sqrt(model$prediction.error)
+}
+
+hyper_grid %>% 
+  dplyr::arrange(OOB_RMSE) %>%
+  head(10)
+```
+<br>
+
+
+### Run Model 
+
+Rerun the optimal model (by manually entering the parameters identified above) a bunch of times to get a distribution of Residual MSE. 
+```{r echo=TRUE}
+OOB_RMSE <- vector(mode = "numeric", length = 100)
+
+for(i in seq_along(OOB_RMSE)) {
+
+  optimal_ranger <- ranger(
+    formula         = invert_diversity ~ ., 
+    data            = rfdat, 
+    num.trees       = 500,
+    mtry            = 4,
+    min.node.size   = 3,
+    sample.fraction = .6,
+    importance      = 'impurity'
+  )
+  
+  OOB_RMSE[i] <- sqrt(optimal_ranger$prediction.error)
+}
+
+hist(OOB_RMSE, breaks = 20, main="Root MSE", xlab="",col="grey")
+```
+<br>
+
+Now get the importance of the predictors in this optimal model
+```{r}
+plotdat <- optimal_ranger$variable.importance %>% 
+  tidy() %>%
+  dplyr::arrange(desc(x)) %>%
+  dplyr::top_n(25) %>%
+  mutate(names=as.factor(names),
+         names=recode(names, kelp_total_biomass="Kelp Total Biomass",
+                      site="Site",
+                      mean_pon="Particulate Organic Nitrogen",
+                      summer_mean_temp="Mean Summer Temp.",
+                      mean_po4="Phosphorus",
+                      mean_tchl="Total Chlorophyll",
+                      summer_var_temp="Summer Temp. Variance",
+                      mean_no2_no3="Nitrogen",
+                      mean_ammonia="Ammonia"))
+
+ggplot(data=plotdat, aes(reorder(names, x), x)) +
+  geom_col() +
+  coord_flip() +
+  ggtitle("Importance of Variables in Predicting Total Giant Kelp Biomass") +
+  ylab("Accumulated Reduction in MSE") +
+  xlab("Variable") +
+  theme_bw() + theme(panel.grid.major.x=element_blank(),
+                     panel.grid.minor.x=element_blank())
+```
+<br>
+
+Run the model to predict total kelp biomass. How does the prediction match observed values?
+```{r echo=TRUE}
+set.seed(100)
+n <- dim(rfdat)[1]
+trainrows <- sample(1:n, round(0.7*n))
+testrows <- seq(1:n)[which(!(seq(1:n) %in% trainrows))]
+rfdat.train <- rfdat %>%
+  dplyr::slice(trainrows)
+rfdat.test <- rfdat %>%
+  dplyr::slice(testrows)
+
+final_model <- ranger(
+    formula   = invert_diversity ~ ., 
+    data      = rfdat.train, 
+    num.trees = 500,
+    mtry      = 4,
+    min.node.size = 3,
+    importance      = 'impurity'
+)
+```
+```{r}
+rfdat.test <- rfdat.test %>%
+  mutate(predictions = predict(final_model, rfdat.test)$predictions,
+         diff.predict = (invert_diversity-predictions)/invert_diversity)
+
+plot_values <- ggplot(rfdat.test,aes(x=invert_diversity,y=predictions)) +
+  geom_point() +
+  geom_abline(slope=1,intercept=0) +
+  ylim(c(0,max(rfdat.test$invert_diversity)))+
+  xlim(c(0,max(rfdat.test$invert_diversity)))+
+  xlab("Observed") +
+  ylab("Predicted") +
+  theme_bw()
+plot_diff <- ggplot(rfdat.test,aes(x=diff.predict)) +
+  geom_histogram(binwidth=0.2) +
+  xlab("Percent Difference (Observed-Predicted)") +
+  ylab("Frequency") +
+  theme_bw()
+
+plot_grid(plot_values,plot_diff,rel_widths=c(1,0.8))
+```
+<br>
+
+
+
+
+
+## Fish Total Biomass
+```{r echo=TRUE}
+rfdat <- mydat.t %>%
+  dplyr::select(c(2,3,9:16))
+colnames(rfdat)
+```
+
+
+### Optimize Parameters
+
+First, create the grid of parameter combinations. 
+```{r echo=TRUE}
+hyper_grid <- expand.grid(
+  mtry       = seq(2, 8, by = 2),
+  node_size  = seq(3, 7, by = 1),
+  sampe_size = c(.60, .65, .70, .80),
+  OOB_RMSE   = 0
+)
+```
+<br>
+
+Then iterate through grid and find which combination of parameters provides the lowest root mean squared error (RMSE). This will be the parameter combination at the top of the data frame, output below.
+```{r echo=TRUE}
+set.seed(100)
+
+for(i in 1:nrow(hyper_grid)) {
+  
+  # train model
+  model <- ranger(
+    formula         = fish_total_biomass ~ ., 
+    data            = rfdat, 
+    num.trees       = 500,
+    mtry            = hyper_grid$mtry[i],
+    min.node.size   = hyper_grid$node_size[i],
+    sample.fraction = hyper_grid$sampe_size[i],
+    seed            = 123
+  )
+  
+  # add OOB error to grid
+  hyper_grid$OOB_RMSE[i] <- sqrt(model$prediction.error)
+}
+
+hyper_grid %>% 
+  dplyr::arrange(OOB_RMSE) %>%
+  head(10)
+```
+<br>
+
+
+### Run Model 
+
+Rerun the optimal model (by manually entering the parameters identified above) a bunch of times to get a distribution of Residual MSE. 
+```{r echo=TRUE}
+OOB_RMSE <- vector(mode = "numeric", length = 100)
+
+for(i in seq_along(OOB_RMSE)) {
+
+  optimal_ranger <- ranger(
+    formula         = fish_total_biomass ~ ., 
+    data            = rfdat, 
+    num.trees       = 500,
+    mtry            = 8,
+    min.node.size   = 7,
+    sample.fraction = .8,
+    importance      = 'impurity'
+  )
+  
+  OOB_RMSE[i] <- sqrt(optimal_ranger$prediction.error)
+}
+
+hist(OOB_RMSE, breaks = 20, main="Root MSE", xlab="",col="grey")
+```
+<br>
+
+Now get the importance of the predictors in this optimal model
+```{r}
+plotdat <- optimal_ranger$variable.importance %>% 
+  tidy() %>%
+  dplyr::arrange(desc(x)) %>%
+  dplyr::top_n(25) %>%
+  mutate(names=as.factor(names),
+         names=recode(names, kelp_total_biomass="Kelp Total Biomass",
+                      site="Site",
+                      mean_pon="Particulate Organic Nitrogen",
+                      summer_mean_temp="Mean Summer Temp.",
+                      mean_po4="Phosphorus",
+                      mean_tchl="Total Chlorophyll",
+                      summer_var_temp="Summer Temp. Variance",
+                      mean_no2_no3="Nitrogen",
+                      mean_ammonia="Ammonia"))
+
+ggplot(data=plotdat, aes(reorder(names, x), x)) +
+  geom_col() +
+  coord_flip() +
+  ggtitle("Importance of Variables in Predicting Total Giant Kelp Biomass") +
+  ylab("Accumulated Reduction in MSE") +
+  xlab("Variable") +
+  theme_bw() + theme(panel.grid.major.x=element_blank(),
+                     panel.grid.minor.x=element_blank())
+```
+<br>
+
+Run the model to predict total kelp biomass. How does the prediction match observed values?
+```{r echo=TRUE}
+set.seed(100)
+n <- dim(rfdat)[1]
+trainrows <- sample(1:n, round(0.7*n))
+testrows <- seq(1:n)[which(!(seq(1:n) %in% trainrows))]
+rfdat.train <- rfdat %>%
+  dplyr::slice(trainrows)
+rfdat.test <- rfdat %>%
+  dplyr::slice(testrows)
+
+final_model <- ranger(
+    formula   = fish_total_biomass ~ ., 
+    data      = rfdat.train, 
+    num.trees = 500,
+    mtry      = 4,
+    min.node.size = 3,
+    importance      = 'impurity'
+)
+```
+```{r}
+rfdat.test <- rfdat.test %>%
+  mutate(predictions = predict(final_model, rfdat.test)$predictions,
+         diff.predict = (fish_total_biomass-predictions)/fish_total_biomass)
+
+plot_values <- ggplot(rfdat.test,aes(x=fish_total_biomass,y=predictions)) +
+  geom_point() +
+  geom_abline(slope=1,intercept=0) +
+  ylim(c(0,max(rfdat.test$fish_total_biomass)))+
+  xlim(c(0,max(rfdat.test$fish_total_biomass)))+
+  xlab("Observed") +
+  ylab("Predicted") +
+  theme_bw()
+plot_diff <- ggplot(rfdat.test,aes(x=diff.predict)) +
+  geom_histogram(binwidth=0.2) +
+  xlab("Percent Difference (Observed-Predicted)") +
+  ylab("Frequency") +
+  theme_bw()
+
+plot_grid(plot_values,plot_diff,rel_widths=c(1,0.8))
+```
+<br>
+
+
+
+
+
+
+
+
+
+
+
